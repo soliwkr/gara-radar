@@ -101,3 +101,16 @@ export { tags, entityTags } from '@/server/modules/tags/db/schema'
 export { watchers } from '@/server/modules/watchers/db/schema'
 export { favourites } from '@/server/modules/favourites/db/schema'
 export { recentViews } from '@/server/modules/recent-views/db/schema'
+
+// Gara Radar OS — market observatory + control room
+export {
+  grSources,
+  grSignals,
+  grEvents,
+  grSegments,
+  grOpportunities,
+  grExperiments,
+  grFitness,
+  grLearnings,
+  grHumanActions,
+} from '@/server/modules/gara-radar-os/db/schema'

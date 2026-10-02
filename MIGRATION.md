@@ -17,3 +17,15 @@ This branch is an isolated migration candidate based on the mature MIT-licensed
 Cloudflare Worker + Static Assets + D1 + KV + Workflows, with one authenticated
 Control Room for Sources, Signals, Segments, Opportunities, Experiments, Fitness,
 Learnings and Human Actions.
+
+## Current provisioning blocker
+
+The migration build and local D1 schema can be validated without touching production.
+Cloudflare account provisioning is currently blocked by the account's 10-database D1 limit.
+No existing D1 database will be deleted, renamed, or repurposed automatically.
+
+- Compile/type manifest: `wrangler.jsonc` (starter-compatible bindings for type generation only)
+- Actual future preview deployment: `wrangler.preview.jsonc` (minimal Worker + D1)
+- Preview D1 ID remains a zero placeholder until a safe D1 slot exists.
+
+Production `gara-radar.soliwkr.workers.dev` remains unchanged.

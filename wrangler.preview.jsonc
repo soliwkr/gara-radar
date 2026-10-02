@@ -1,0 +1,24 @@
+// Deployment config for the isolated Gara Radar v2 preview.
+// Keep this minimal. It is NOT deployable until database_id is replaced.
+{
+  "name": "gara-radar-v2-preview",
+  "compatibility_date": "2026-07-10",
+  "compatibility_flags": ["nodejs_compat_v2"],
+  "main": "./src/server/index.ts",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "studio-admin-db",
+      "database_id": "4d270196-734f-4d69-8799-bad826f47c7f",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

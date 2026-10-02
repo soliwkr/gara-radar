@@ -1,0 +1,65 @@
+import { createMiddleware } from 'hono/factory'
+import type { Env } from '../index'
+
+/**
+ * Security headers middleware
+ *
+ * Applies security headers to all responses:
+ * - X-Content-Type-Options: Prevents MIME sniffing
+ * - X-Frame-Options: Prevents clickjacking
+ * - Referrer-Policy: Controls referrer information
+ * - Permissions-Policy: Restricts browser features
+ * - CSP: Content Security Policy for HTML responses
+ * - HSTS: Strict transport security (production only)
+ */
+export const securityHeaders = createMiddleware<{ Bindings: Env }>(async (c, next) => {
+  await next()
+
+  // Always set these security headers
+  c.res.headers.set('X-Content-Type-Options', 'nosniff')
+  c.res.headers.set('X-Frame-Options', 'DENY')
+  c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  c.res.headers.set('X-XSS-Protection', '1; mode=block')
+
+  // Permissions Policy (formerly Feature-Policy)
+  c.res.headers.set('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()')
+
+  // Get content type to determine if CSP should be applied
+  const contentType = c.res.headers.get('Content-Type') || ''
+  const isHtml = contentType.includes('text/html')
+  const isApi = c.req.path.startsWith('/api/')
+
+  // CSP only for HTML responses (not API JSON responses).
+  //
+  // ⚠ TWIN: `public/_headers` carries the SAME policy for ASSET-served pages
+  // (the SPA's index.html never passes through this middleware — the assets
+  // layer answers first). Any CSP change here must be mirrored there, minus
+  // env-conditional parts (_headers is static). Forks wanting a conditional
+  // allowance (e.g. the CF insights beacon) on SPA pages must edit _headers.
+  if (isHtml && !isApi) {
+    // Zones with Cloudflare Web Analytics (RUM) auto-injection add a beacon
+    // script this CSP blocks — harmless but a permanent console error (#117).
+    // Set CSP_ALLOW_CF_INSIGHTS=true to allow it, or disable injection for
+    // this hostname in the zone's Analytics settings.
+    const allowInsights = c.env.CSP_ALLOW_CF_INSIGHTS === 'true'
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'unsafe-inline'${allowInsights ? ' https://static.cloudflareinsights.com' : ''}`, // unsafe-inline for Vite HMR in dev
+      "style-src 'self' 'unsafe-inline'", // inline styles from components
+      "img-src 'self' data: https: blob:", // https images + canvas/blob URLs (video frame capture)
+      "font-src 'self' data:",
+      `connect-src 'self' https://accounts.google.com wss:${allowInsights ? ' https://cloudflareinsights.com' : ''}`, // Google OAuth + agent WebSockets
+      "frame-src 'self' https://*.trycloudflare.com", // workspace panel iframes sandbox site previews (quick tunnels)
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ')
+
+    c.res.headers.set('Content-Security-Policy', csp)
+  }
+
+  // HSTS - only in production
+  if (c.env.NODE_ENV === 'production') {
+    c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+  }
+})

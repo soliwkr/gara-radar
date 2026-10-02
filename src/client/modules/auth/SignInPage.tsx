@@ -1,0 +1,485 @@
+/**
+ * Sign In Page
+ *
+ * AUTH CONFIGURATION - See CLAUDE.md "Auth Method Control" section
+ * ─────────────────────────────────────────────────────────────────
+ * This page adapts to server config via /api/auth/config endpoint.
+ * Email/password is DISABLED by default (OAuth-only mode).
+ *
+ * To enable email login: Set ENABLE_EMAIL_LOGIN=true in Cloudflare secrets
+ * To enable email signup: Also set ENABLE_EMAIL_SIGNUP=true
+ *
+ * The UI automatically shows/hides email form based on server config.
+ */
+import { useState, useEffect, useMemo, FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router'
+import {
+  authClient,
+  getLastUsedLoginMethod,
+  signInMagicLink,
+  signInPasskey,
+} from '@/client/lib/auth'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+
+interface AuthConfig {
+  emailLoginEnabled: boolean
+  emailSignupEnabled: boolean
+  googleEnabled: boolean
+  magicLinkEnabled?: boolean
+  passkeysEnabled?: boolean
+}
+
+/**
+ * Passkey + magic-link sign-in options — rendered below the primary
+ * method in every login variant. Both are env-gated server-side
+ * (ENABLE_PASSKEYS / ENABLE_MAGIC_LINK) and hidden unless enabled.
+ */
+function AltSignInMethods({
+  config,
+  nextUrl,
+  onError,
+}: {
+  config: AuthConfig
+  nextUrl: string
+  onError: (message: string) => void
+}) {
+  const [magicEmail, setMagicEmail] = useState('')
+  const [magicSent, setMagicSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  if (!config.magicLinkEnabled && !config.passkeysEnabled) return null
+
+  const handlePasskey = async () => {
+    setBusy(true)
+    try {
+      await signInPasskey()
+      window.location.href = nextUrl
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Passkey sign-in failed')
+      setBusy(false)
+    }
+  }
+
+  const handleMagicLink = async () => {
+    if (!magicEmail) return
+    setBusy(true)
+    try {
+      await signInMagicLink(magicEmail, nextUrl)
+      setMagicSent(true)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Failed to send sign-in link')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">or</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+      {config.passkeysEnabled && (
+        <Button
+          variant="outline"
+          type="button"
+          className="w-full"
+          onClick={handlePasskey}
+          disabled={busy}
+        >
+          Sign in with a passkey
+        </Button>
+      )}
+      {config.magicLinkEnabled &&
+        (magicSent ? (
+          <p className="text-center text-sm text-muted-foreground">
+            Check your email — we sent a sign-in link to{' '}
+            <span className="font-medium text-foreground">{magicEmail}</span>. It expires in 5
+            minutes.
+          </p>
+        ) : (
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="you@example.com"
+              value={magicEmail}
+              onChange={(e) => setMagicEmail(e.target.value)}
+              disabled={busy}
+              aria-label="Email for sign-in link"
+            />
+            <Button
+              variant="outline"
+              type="button"
+              onClick={handleMagicLink}
+              disabled={busy || !magicEmail}
+              className="shrink-0"
+            >
+              Email me a link
+            </Button>
+          </div>
+        ))}
+    </div>
+  )
+}
+
+/**
+ * Resolve the post-login destination from ?next=. Validates that the
+ * target is a same-origin dashboard path — blocks open-redirects to
+ * external URLs or to root/auth routes that'd loop. Defaults to /dashboard.
+ */
+function resolveNextUrl(raw: string | null): string {
+  if (!raw) return '/dashboard'
+  try {
+    const decoded = decodeURIComponent(raw)
+    // Allowlist: dashboard or accept-invitation paths only.
+    // (Open-redirect protection — never trust the raw query param.)
+    const isDashboard = decoded.startsWith('/dashboard')
+    const isAcceptInvite = decoded.startsWith('/accept-invitation/')
+    if (!isDashboard && !isAcceptInvite) return '/dashboard'
+    // Block URLs that'd loop back to sign-in
+    if (decoded.includes('/sign-in') || decoded.includes('/login')) return '/dashboard'
+    return decoded
+  } catch {
+    return '/dashboard'
+  }
+}
+
+export function SignInPage() {
+  const [searchParams] = useSearchParams()
+  const nextUrl = useMemo(() => resolveNextUrl(searchParams.get('next')), [searchParams])
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  // Seed from ?error= so server-side OAuth failures are visible (issue #69).
+  // better-auth appends ?error=<code> to errorCallbackURL when a social
+  // sign-in is rejected server-side (e.g. a user.create.before allowlist
+  // gate). Without reading it, blocked sign-ins look like "nothing happened".
+  const initialError = useMemo(() => {
+    const code = searchParams.get('error')
+    if (!code) return ''
+    if (code === 'unable_to_create_user')
+      return "This account isn't authorised. Sign in with an approved account, or ask the administrator to add your email."
+    if (code === 'access_denied') return 'Sign-in was cancelled.'
+    return 'Sign-in failed. Please try again.'
+  }, [searchParams])
+  const [error, setError] = useState(initialError)
+  const [loading, setLoading] = useState(false)
+
+  // Auth config state
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null)
+  const [configLoading, setConfigLoading] = useState(true)
+
+  // Last login method — read from cookie set by lastLoginMethod() server
+  // plugin after successful sign-in. Drives the "Last used" hint that
+  // helps returning users skip straight to their preferred provider.
+  const lastMethod = useMemo(() => getLastUsedLoginMethod(), [])
+
+  // Fetch auth config on mount — with a 5s timeout so a slow/stuck server
+  // doesn't leave the page on skeletons forever. Falls back to "show all"
+  // on both timeout and fetch error.
+  useEffect(() => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    fetch('/api/auth/config', { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error('Config fetch failed')
+        return res.json()
+      })
+      .then((data) => {
+        setAuthConfig(data as AuthConfig)
+        setConfigLoading(false)
+      })
+      .catch(() => {
+        setAuthConfig({ emailLoginEnabled: true, emailSignupEnabled: true, googleEnabled: true })
+        setConfigLoading(false)
+      })
+      .finally(() => clearTimeout(timeout))
+    return () => {
+      clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [])
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      await authClient.signIn.email({
+        email,
+        password,
+      })
+
+      // Full page reload so useSession() picks up the new auth cookie.
+      // navigate() does a client-side transition that doesn't re-read cookies.
+      window.location.href = nextUrl
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true)
+    try {
+      await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: nextUrl,
+        // Land server-side failures on a page that reads ?error= (issue #69).
+        // Default would bounce to the landing page where the error is invisible.
+        errorCallbackURL: '/sign-in',
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in with Google')
+      setLoading(false)
+    }
+  }
+
+  // Loading state while fetching config
+  if (configLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="flex flex-col gap-6 w-full max-w-md">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  const altMethodsEnabled = !!(authConfig?.magicLinkEnabled || authConfig?.passkeysEnabled)
+
+  // Misconfigured: no auth method enabled. Render an actionable warning so a
+  // fresh clone with no .dev.vars doesn't show a silently-broken email form.
+  if (!authConfig?.emailLoginEnabled && !authConfig?.googleEnabled && !altMethodsEnabled) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="flex flex-col gap-6 w-full max-w-lg">
+          <Card>
+            <CardHeader>
+              <CardTitle>No auth method configured</CardTitle>
+              <CardDescription>
+                The server has no enabled login methods. Set one of these in <code>.dev.vars</code>{' '}
+                (local) or wrangler secrets (production):
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div>
+                <div className="font-medium mb-1">Email + password</div>
+                <pre className="bg-muted px-3 py-2 rounded text-xs overflow-x-auto">{`ENABLE_EMAIL_LOGIN=true\nENABLE_EMAIL_SIGNUP=true`}</pre>
+              </div>
+              <div>
+                <div className="font-medium mb-1">Google OAuth</div>
+                <pre className="bg-muted px-3 py-2 rounded text-xs overflow-x-auto">{`GOOGLE_CLIENT_ID=...\nGOOGLE_CLIENT_SECRET=...`}</pre>
+              </div>
+              <p className="text-muted-foreground">
+                After updating, restart <code>pnpm dev</code> and reload this page. See the README
+                and <code>.dev.vars.example</code> for the full setup.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // No email/password form: Google and/or passkey/magic-link only.
+  if (!authConfig?.emailLoginEnabled && (authConfig?.googleEnabled || altMethodsEnabled)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="flex flex-col gap-6 w-full max-w-md">
+          <div className="text-center space-y-1">
+            <Link
+              to="/"
+              className="inline-block text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Back to home
+            </Link>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Welcome back</CardTitle>
+              <CardDescription>
+                Sign in with Google to access your AI workspace, connections, and saved skills.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
+                {error && (
+                  <div className="p-3 text-sm text-destructive-foreground bg-destructive/10 border border-destructive rounded-md">
+                    {error}
+                  </div>
+                )}
+                {authConfig?.googleEnabled && (
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full"
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
+                  >
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        fill="#4285F4"
+                      />
+                      <path
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        fill="#34A853"
+                      />
+                      <path
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                        fill="#FBBC05"
+                      />
+                      <path
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                        fill="#EA4335"
+                      />
+                    </svg>
+                    {loading ? 'Signing in...' : 'Continue with Google'}
+                    {lastMethod === 'google' && (
+                      <span className="ml-2 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                        Last used
+                      </span>
+                    )}
+                  </Button>
+                )}
+                <AltSignInMethods config={authConfig} nextUrl={nextUrl} onError={setError} />
+                <FieldDescription className="text-center text-xs leading-relaxed">
+                  Google sign-in lets the app securely connect to Workspace tools (Gmail, Drive,
+                  Calendar) if you choose to enable them later. We never see your password.
+                </FieldDescription>
+              </FieldGroup>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Full login form (email + optional Google)
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="flex flex-col gap-6 w-full max-w-md">
+        <Card>
+          <CardHeader>
+            <CardTitle>Login to your account</CardTitle>
+            <CardDescription>Enter your email below to login to your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit}>
+              <FieldGroup>
+                {error && (
+                  <div className="p-3 text-sm text-destructive-foreground bg-destructive/10 border border-destructive rounded-md">
+                    {error}
+                  </div>
+                )}
+                <Field>
+                  <FieldLabel htmlFor="email">Email</FieldLabel>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="m@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </Field>
+                <Field>
+                  <div className="flex items-center">
+                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                    <Link
+                      to="/forgot-password"
+                      className="ml-auto inline-block text-sm underline-offset-4 hover:underline text-muted-foreground"
+                    >
+                      Forgot your password?
+                    </Link>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </Field>
+                <Field>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? 'Signing in...' : 'Login'}
+                    {lastMethod === 'email' && (
+                      <span className="ml-2 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                        Last used
+                      </span>
+                    )}
+                  </Button>
+                  {authConfig?.googleEnabled && (
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="w-full"
+                      onClick={handleGoogleSignIn}
+                      disabled={loading}
+                    >
+                      <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          fill="#34A853"
+                        />
+                        <path
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                          fill="#EA4335"
+                        />
+                      </svg>
+                      Login with Google
+                      {lastMethod === 'google' && (
+                        <span className="ml-2 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                          Last used
+                        </span>
+                      )}
+                    </Button>
+                  )}
+                  {authConfig && (
+                    <AltSignInMethods config={authConfig} nextUrl={nextUrl} onError={setError} />
+                  )}
+                  {authConfig?.emailSignupEnabled && (
+                    <FieldDescription className="text-center">
+                      Don't have an account?{' '}
+                      <Link to="/sign-up" className="text-primary hover:underline">
+                        Sign up
+                      </Link>
+                    </FieldDescription>
+                  )}
+                </Field>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}

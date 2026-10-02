@@ -1,0 +1,67 @@
+/**
+ * Public layout for landing and auth pages — a thin <AppShell> composition.
+ * Header + footer + full-width main (pages bring their own container widths).
+ *
+ * ⚠️  SECURITY: Update VITE_APP_NAME and VITE_FOOTER_TEXT env vars
+ * to rebrand for production (see src/shared/config/app.ts)
+ */
+import { Outlet, Link } from 'react-router'
+import { AppShell } from '@/components/ui/app-shell'
+import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/client/components/theme-toggle'
+import { appConfig, getLogoUrl } from '@/shared/config/app'
+import { useSession } from '@/client/lib/auth'
+
+function PublicHeader() {
+  const { data: session } = useSession()
+  // signIn wordmark logo (falls back to plain text name when not set).
+  const wordmark = getLogoUrl('signIn')
+  return (
+    <header className="border-b border-border">
+      <div className="container mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+        <Link to="/" className="text-xl font-bold flex items-center gap-2">
+          {wordmark ? (
+            <img src={wordmark} alt={appConfig.name} className="h-7 w-auto" />
+          ) : (
+            <span>{appConfig.name}</span>
+          )}
+        </Link>
+        <div className="flex items-center gap-4">
+          <ThemeToggle />
+          {session?.user ? (
+            <Button render={<Link to="/dashboard" />}>Open Dashboard</Button>
+          ) : (
+            <Button variant="ghost" render={<Link to="/sign-in" />}>
+              Sign In
+            </Button>
+          )}
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function PublicFooter() {
+  const footerText =
+    appConfig.footerText || `© ${new Date().getFullYear()} ${appConfig.name}. MIT Licensed.`
+  return (
+    <footer className="border-t border-border py-8">
+      <div className="container mx-auto max-w-6xl px-4 text-center text-muted-foreground text-sm">
+        <p>{footerText}</p>
+      </div>
+    </footer>
+  )
+}
+
+export function PublicLayout() {
+  return (
+    <AppShell
+      header={<PublicHeader />}
+      footer={<PublicFooter />}
+      contentMaxWidth="full"
+      contentPadding={false}
+    >
+      <Outlet />
+    </AppShell>
+  )
+}

@@ -1,0 +1,91 @@
+import * as React from 'react'
+import { Button as ButtonPrimitive } from '@base-ui/react/button'
+import { cva, type VariantProps } from 'class-variance-authority'
+
+import { cn } from '@/lib/utils'
+
+const buttonVariants = cva(
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      variant: {
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        destructive:
+          'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
+        outline:
+          'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+        link: 'text-primary underline-offset-4 hover:underline',
+      },
+      size: {
+        default: 'h-9 px-4 py-2 has-[>svg]:px-3',
+        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5',
+        lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
+        icon: 'size-9',
+        'icon-xs': "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        'icon-sm': 'size-8',
+        'icon-lg': 'size-10',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
+  }
+)
+
+function Button({
+  className,
+  variant = 'default',
+  size = 'default',
+  render,
+  nativeButton,
+  ...props
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // Navigation targets keep LINK semantics. Base UI's useButton spreads
+  // `role="button"` + Space-activation onto any non-native render target —
+  // anchors included — which strips links out of screen-reader link lists
+  // (brains-trust 2026-07-16, verified in @base-ui/react source). A render
+  // element that is an <a>/<Link> is therefore styled directly and never
+  // routed through the Button primitive.
+  if (React.isValidElement(render)) {
+    const rp = render.props as Record<string, unknown>
+    const isAnchor = render.type === 'a' || 'href' in rp || 'to' in rp
+    if (isAnchor) {
+      const { children, ...rest } = props as Record<string, unknown>
+      return React.cloneElement(render as React.ReactElement<Record<string, unknown>>, {
+        'data-slot': 'button',
+        'data-variant': variant,
+        'data-size': size,
+        ...rest,
+        className: cn(buttonVariants({ variant, size, className }), rp['className'] as string),
+        children: children ?? rp['children'],
+      })
+    }
+  }
+
+  // Base UI's Button primitive defaults `type="button"` on native buttons,
+  // which stops accidental form submits when nested in a <form> (e.g.
+  // PromptInput). This replaces the hand-rolled resolvedType fix the radix
+  // wrapper carried — passing an explicit `type` still overrides it.
+  //
+  // `nativeButton` is inferred from `render`: when rendering a custom
+  // non-anchor element Base UI must not treat it as a native <button>.
+  // Pass `nativeButton` explicitly if you render a real <button> via
+  // `render`.
+  return (
+    <ButtonPrimitive
+      data-slot="button"
+      data-variant={variant}
+      data-size={size}
+      className={cn(buttonVariants({ variant, size, className }))}
+      render={render}
+      nativeButton={nativeButton ?? render === undefined}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }

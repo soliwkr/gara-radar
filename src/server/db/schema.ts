@@ -114,3 +114,6 @@ export {
   grLearnings,
   grHumanActions,
 } from '@/server/modules/gara-radar-os/db/schema'
+
+// Gara Radar public beta
+export { grBetaLeads } from '@/server/modules/gara-radar-public/schema'

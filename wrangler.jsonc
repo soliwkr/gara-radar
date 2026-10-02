@@ -3,6 +3,12 @@
   "name": "gara-radar",
   "compatibility_date": "2026-10-02",
   "main": "./workers/app.ts",
+  "kv_namespaces": [
+    {
+      "binding": "GR_CONTROL",
+      "id": "9fd7c45416504402bd2efd1bb1d957aa"
+    }
+  ],
   "observability": {
     "enabled": true
   },

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  Activity,
+  Pulse,
   ArrowClockwise,
   ChartBar,
   Database,
@@ -137,7 +137,7 @@ export function ControlRoomPage() {
 
   const stats = [
     { label: 'Live sources', value: `${liveSources}/${data.counts.sources}`, icon: Database },
-    { label: 'Signals', value: data.counts.signals, icon: Activity },
+    { label: 'Signals', value: data.counts.signals, icon: Pulse },
     { label: 'Segments', value: data.counts.segments, icon: Gauge },
     { label: 'Opportunities', value: data.counts.opportunities, icon: Lightning },
     { label: 'Experiments', value: data.counts.experiments, icon: ChartBar },
@@ -149,7 +149,7 @@ export function ControlRoomPage() {
       <PageHeader
         title="Gara Radar Control Room"
         subtitle="Supply + demand + pain + competition + behavior + economics. Evidence first, side effects second."
-        actions={
+        trailing={
           <Button size="sm" variant="outline" onClick={() => overview.refetch()}>
             <ArrowClockwise className="mr-1.5 size-4" />
             Refresh

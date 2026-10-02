@@ -41,16 +41,19 @@ export function PricingPage() {
 
             <Card>
               <CardContent className="p-7">
-                <Badge variant="outline">Dopo la beta</Badge>
+                <Badge variant="outline">Founding Radar</Badge>
                 <div className="mt-5 text-4xl font-semibold">da €9,90<span className="text-base font-normal text-muted-foreground">/mese</span></div>
                 <p className="mt-2 text-muted-foreground">
-                  Prezzo di lancio previsto per un profilo essenziale. Nessun addebito automatico dalla beta.
+                  Per chi ha già visto valore nel radar e vuole continuare a ricevere opportunità filtrate. Nessun addebito automatico dalla beta.
                 </p>
                 <ul className="mt-6 space-y-3 text-sm">
                   {['Categoria / attività', 'Territorio', 'Preferiti', 'Alert ricorrenti'].map((x) => (
                     <li key={x} className="flex gap-2"><CheckCircle className="mt-0.5 size-4 text-primary" /> {x}</li>
                   ))}
                 </ul>
+                <Button className="mt-7 w-full" variant="outline" render={<Link to="/abbonati" />}>
+                  Attiva Founding Radar <ArrowRight className="ml-2 size-4" />
+                </Button>
               </CardContent>
             </Card>
           </div>

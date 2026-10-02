@@ -34,6 +34,24 @@ Required before this source can become LIVE:
 
 Until then the source remains `REQUIRES_AUTH`.
 
+## PROVIDER-NEUTRAL MARKET DEMAND
+
+### SRC-KEYWORD-MARKET — Keyword market snapshots
+
+Code:
+- `workers/os/connectors/keyword-market.ts`
+
+This normalizer accepts provider snapshots containing keyword, locale, search volume, CPC, competition and trend data, then emits DEMAND Signals with deterministic intent classification.
+
+No provider is connected yet, so the source remains `DORMANT`. This is intentionally separate from Search Console: Search Console observes demand that already reaches Gara Radar, while this source is for pre-site market discovery.
+
+## APPROVED RESEARCH CORPUS
+
+Code:
+- `workers/os/connectors/research-corpus.ts`
+
+This normalizer accepts already-approved PAIN, COMPETITION and REGULATORY observations. It does not crawl by itself. Acquisition must be allowlisted and source-aware.
+
 ## SOURCE VERIFIED, INGESTION NOT LIVE
 
 ### SRC-BDNCP-OPEN — ANAC BDNCP Open Data

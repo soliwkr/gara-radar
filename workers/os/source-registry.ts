@@ -31,6 +31,16 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
     url: "https://developers.google.com/webmaster-tools/v1/searchanalytics/query",
   },
   {
+    id: "SRC-KEYWORD-MARKET",
+    radar: "DEMAND",
+    name: "Keyword market provider",
+    status: "DORMANT",
+    cadence: "weekly when provider exists",
+    access: "provider not selected",
+    notes:
+      "Pre-site demand source for search volume, CPC, competition and trend snapshots. Provider-neutral normalizer exists; no provider is connected yet.",
+  },
+  {
     id: "SRC-GTRENDS",
     radar: "DEMAND",
     name: "Google Trends API alpha",

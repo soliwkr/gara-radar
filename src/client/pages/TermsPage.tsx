@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 
 export function TermsPage() {
   const items = [
+    ['Gestore del servizio', 'Internet Marketing Secrets di Christian Fioravanti · P.IVA 02996460594 · Formia (LT), Italia.'],
     ['Uso del servizio', 'Le informazioni servono ad accelerare la ricerca e la prima valutazione. Prima di qualsiasi decisione di partecipazione devono essere consultati bando, disciplinare, allegati e fonte ufficiale.'],
     ['Accuratezza', 'Durante la beta possiamo correggere, aggiornare o rimuovere dati e funzionalità. Una gara può cambiare, essere rettificata, prorogata o revocata dalla stazione appaltante.'],
     ['Nessuna garanzia di esito', 'La presenza di un’opportunità nel radar non implica ammissibilità, convenienza, aggiudicazione o possesso dei requisiti.'],

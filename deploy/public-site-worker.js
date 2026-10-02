@@ -1,5 +1,6 @@
 const SITE = "https://gara-radar.soliwkr.workers.dev";
 const STRIPE_LINK = "https://buy.stripe.com/3cI7sL9UA1MNcbj50wgjC00";
+const STRIPE_PORTAL = "https://billing.stripe.com/p/login/3cI7sL9UA1MNcbj50wgjC00";
 
 const opportunities = [
   {
@@ -50,7 +51,7 @@ function header(){
 }
 
 function footer(){
-  return `<footer class="site-footer"><div class="shell"><div class="footer-grid"><div><a class="brand" href="/"><span class="brandmark">◎</span><span>Gara Radar</span></a><p class="footer-copy">Servizio indipendente di scouting e prima selezione di opportunità negli appalti pubblici. Gara Radar non è ANAC, non è una stazione appaltante e non sostituisce la documentazione ufficiale.</p><p class="footer-copy" style="margin-top:10px">Internet Marketing Secrets di Christian Fioravanti · P.IVA 02996460594 · Formia (LT), Italia</p><p class="footer-copy" style="margin-top:6px">Contatto privacy: <a href="mailto:privacy@gararadar.it" style="text-decoration:underline">privacy@gararadar.it</a></p></div><div class="footer-links"><div><b>Prodotto</b><a href="/gare">Gare</a><a href="/come-funziona">Come funziona</a><a href="/settori">Settori</a><a href="/prezzi">Prezzi</a><a href="/faq">FAQ</a></div><div><b>Legale</b><a href="/privacy">Privacy</a><a href="/termini">Termini</a><a href="/cookie">Cookie</a><a href="/disclaimer">Disclaimer</a><a href="mailto:privacy@gararadar.it">Contatto privacy</a></div></div></div><div class="legal-row"><span>Gara Radar · Beta 2026</span><span>Servizio indipendente · Nessuna promessa di ammissibilità o aggiudicazione</span></div></div></footer>`;
+  return `<footer class="site-footer"><div class="shell"><div class="footer-grid"><div><a class="brand" href="/"><span class="brandmark">◎</span><span>Gara Radar</span></a><p class="footer-copy">Servizio indipendente di scouting e prima selezione di opportunità negli appalti pubblici. Gara Radar non è ANAC, non è una stazione appaltante e non sostituisce la documentazione ufficiale.</p><p class="footer-copy" style="margin-top:10px">Internet Marketing Secrets di Christian Fioravanti · P.IVA 02996460594 · Formia (LT), Italia</p><p class="footer-copy" style="margin-top:6px">Contatto privacy: <a href="mailto:privacy@gararadar.it" style="text-decoration:underline">privacy@gararadar.it</a></p></div><div class="footer-links"><div><b>Prodotto</b><a href="/gare">Gare</a><a href="/come-funziona">Come funziona</a><a href="/settori">Settori</a><a href="/prezzi">Prezzi</a><a href="/faq">FAQ</a></div><div><b>Legale</b><a href="/privacy">Privacy</a><a href="/termini">Termini</a><a href="/cookie">Cookie</a><a href="/disclaimer">Disclaimer</a><a href="${STRIPE_PORTAL}">Gestisci abbonamento</a><a href="mailto:privacy@gararadar.it">Contatto privacy</a></div></div></div><div class="legal-row"><span>Gara Radar · Beta 2026</span><span>Servizio indipendente · Nessuna promessa di ammissibilità o aggiudicazione</span></div></div></footer>`;
 }
 
 function layout(title,description,body,path="/"){
@@ -110,7 +111,7 @@ function abbonati(){
 }
 
 function grazie(){
- const body=`<section class="page-hero center"><div class="shell max700"><span class="badge"><span class="dot"></span>Abbonamento ricevuto</span><h1>Founding Radar è attivo.</h1><p>Grazie. Stripe ci ha notificato il pagamento; useremo il profilo collegato per continuare a consegnare opportunità pertinenti. Se hai appena pagato, l’attivazione può richiedere qualche secondo.</p><div class="hero-cta" style="justify-content:center"><a class="btn primary" href="/gare">Torna al radar</a><a class="btn secondary" href="mailto:privacy@gararadar.it">Contatto</a></div></div></section>`;
+ const body=`<section class="page-hero center"><div class="shell max700"><span class="badge"><span class="dot"></span>Abbonamento ricevuto</span><h1>Founding Radar è attivo.</h1><p>Grazie. Stripe ci ha notificato il pagamento; useremo il profilo collegato per continuare a consegnare opportunità pertinenti. Se hai appena pagato, l’attivazione può richiedere qualche secondo.</p><div class="hero-cta" style="justify-content:center"><a class="btn primary" href="/gare">Torna al radar</a><a class="btn secondary" href="${STRIPE_PORTAL}">Gestisci abbonamento</a></div></div></section>`;
  return layout("Grazie — Gara Radar","Conferma dell’attivazione di Founding Radar.",body,"/grazie");
 }
 

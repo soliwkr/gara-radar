@@ -25,6 +25,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - name: Generate Cloudflare binding types
+        run: pnpm exec wrangler types
+
       - run: pnpm build
 
       - name: Validate D1 migrations locally

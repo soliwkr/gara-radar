@@ -1,0 +1,66 @@
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+
+export const grTenders = sqliteTable('gr_tenders', {
+  id: text('id').primaryKey(),
+  discoverySource: text('discovery_source'),
+  discoveryUrl: text('discovery_url'),
+  sourceKind: text('source_kind').notNull().default('DISCOVERY'),
+  sourceUrl: text('source_url'),
+  cig: text('cig'),
+  title: text('title').notNull(),
+  buyer: text('buyer').notNull(),
+  territory: text('territory'),
+  province: text('province'),
+  placeOfExecution: text('place_of_execution'),
+  amountCents: integer('amount_cents'),
+  deadline: text('deadline'),
+  cpv: text('cpv'),
+  category: text('category'),
+  relevanceNote: text('relevance_note'),
+  verificationStatus: text('verification_status').notNull().default('PENDING'),
+  rejectionReason: text('rejection_reason'),
+  publicVisible: integer('public_visible', { mode: 'boolean' }).notNull().default(false),
+  discoveredAt: text('discovered_at').notNull(),
+  verifiedAt: text('verified_at'),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const grProspects = sqliteTable(
+  'gr_prospects',
+  {
+    id: text('id').primaryKey(),
+    slug: text('slug').notNull(),
+    companyName: text('company_name').notNull(),
+    website: text('website'),
+    town: text('town'),
+    province: text('province'),
+    phone: text('phone'),
+    email: text('email'),
+    segment: text('segment').notNull(),
+    evidenceUrl: text('evidence_url'),
+    evidenceRef: text('evidence_ref'),
+    fitReason: text('fit_reason'),
+    status: text('status').notNull().default('QUALIFIED'),
+    outreachStatus: text('outreach_status').notNull().default('NOT_CONTACTED'),
+    responseStatus: text('response_status'),
+    checkoutStarted: integer('checkout_started', { mode: 'boolean' }).notNull().default(false),
+    paid: integer('paid', { mode: 'boolean' }).notNull().default(false),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [uniqueIndex('gr_prospects_slug_idx').on(table.slug)],
+)
+
+export const grProspectMatches = sqliteTable(
+  'gr_prospect_matches',
+  {
+    id: text('id').primaryKey(),
+    prospectId: text('prospect_id').notNull(),
+    tenderId: text('tender_id').notNull(),
+    fitScore: integer('fit_score').notNull(),
+    reason: text('reason').notNull(),
+    status: text('status').notNull().default('PROPOSED'),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [uniqueIndex('gr_prospect_match_unique_idx').on(table.prospectId, table.tenderId)],
+)

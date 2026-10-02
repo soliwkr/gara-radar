@@ -32,5 +32,5 @@ jobs:
 
       - name: Validate D1 migrations locally
         run: |
-          pnpm exec wrangler d1 migrations apply gara-radar-v2-preview --local
-          pnpm exec wrangler d1 execute gara-radar-v2-preview --local --command "SELECT count(*) AS sources FROM gr_sources; SELECT count(*) AS segments FROM gr_segments;"
+          pnpm exec wrangler d1 migrations apply gara-radar-db --local
+          pnpm exec wrangler d1 execute gara-radar-db --local --command "SELECT count(*) AS sources FROM gr_sources; SELECT count(*) AS segments FROM gr_segments;"

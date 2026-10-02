@@ -1,5 +1,5 @@
 import { Outlet, Link } from 'react-router'
-import { Radar, ArrowRight } from '@phosphor-icons/react'
+import { Target, ArrowRight } from '@phosphor-icons/react'
 import { AppShell } from '@/components/ui/app-shell'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/client/components/theme-toggle'
@@ -10,7 +10,7 @@ function PublicHeader() {
       <div className="container mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="grid size-8 place-items-center rounded-full bg-foreground text-background">
-            <Radar className="size-4" />
+            <Target className="size-4" />
           </span>
           <span>Gara Radar</span>
         </Link>
@@ -40,7 +40,7 @@ function PublicFooter() {
       <div className="container mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.2fr_.8fr]">
         <div>
           <Link to="/" className="flex items-center gap-2 font-semibold">
-            <Radar className="size-5" /> Gara Radar
+            <Target className="size-5" /> Gara Radar
           </Link>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
             Servizio informativo per la ricerca e la prima selezione di opportunità negli appalti

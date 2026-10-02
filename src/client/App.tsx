@@ -15,6 +15,11 @@ import { EmptyState } from './components/EmptyState'
 
 // Critical-path imports (always in the main bundle)
 import { LandingPage } from './pages/LandingPage'
+import { HowItWorksPage } from './pages/HowItWorksPage'
+import { SectorsPage } from './pages/SectorsPage'
+import { PricingPage } from './pages/PricingPage'
+import { FaqPage } from './pages/FaqPage'
+import { BetaPage } from './pages/BetaPage'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { PublicLayout } from './layouts/PublicLayout'
 import { DashboardPage } from './pages/DashboardPage'
@@ -270,6 +275,11 @@ function App() {
                 {/* Public marketing pages with header/footer */}
                 <Route element={<PublicLayout />}>
                   <Route path="/" element={<LandingPage />} />
+                  <Route path="/come-funziona" element={<HowItWorksPage />} />
+                  <Route path="/settori" element={<SectorsPage />} />
+                  <Route path="/prezzi" element={<PricingPage />} />
+                  <Route path="/faq" element={<FaqPage />} />
+                  <Route path="/beta" element={<BetaPage />} />
                 </Route>
 
                 {/* Auth routes (standalone, no layout) — bounce already-signed-in

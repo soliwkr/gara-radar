@@ -24,6 +24,8 @@ import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
 import { CookiePage } from './pages/CookiePage'
 import { DisclaimerPage } from './pages/DisclaimerPage'
+import { SubscribePage } from './pages/SubscribePage'
+import { ThanksPage } from './pages/ThanksPage'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { PublicLayout } from './layouts/PublicLayout'
 import { DashboardPage } from './pages/DashboardPage'
@@ -288,6 +290,8 @@ function App() {
                   <Route path="/termini" element={<TermsPage />} />
                   <Route path="/cookie" element={<CookiePage />} />
                   <Route path="/disclaimer" element={<DisclaimerPage />} />
+                  <Route path="/abbonati" element={<SubscribePage />} />
+                  <Route path="/grazie" element={<ThanksPage />} />
                 </Route>
 
                 {/* Auth routes (standalone, no layout) — bounce already-signed-in

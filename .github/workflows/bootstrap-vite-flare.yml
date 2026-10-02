@@ -1,0 +1,112 @@
+name: Bootstrap Vite Flare migration
+
+on:
+  push:
+    branches: ["bootstrap-vite-flare"]
+    paths:
+      - ".github/workflows/bootstrap-vite-flare.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Gara Radar
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preserve Gara Radar domain layer
+        run: |
+          mkdir -p /tmp/gara-domain
+          cp -R workers /tmp/gara-domain/workers || true
+          cp -R docs /tmp/gara-domain/docs || true
+          cp preview.html /tmp/gara-domain/preview.html || true
+          cp -R site /tmp/gara-domain/site || true
+
+      - name: Fetch mature Cloudflare starter
+        run: |
+          git clone --depth=1 https://github.com/jezweb/vite-flare-starter.git /tmp/vite-flare
+
+      - name: Build migration branch tree
+        run: |
+          git switch -C migration-vite-flare origin/main
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+
+          rsync -a /tmp/vite-flare/ ./ \
+            --exclude .git \
+            --exclude .jez \
+            --exclude assets \
+            --exclude public/tour \
+            --exclude docs/gifs \
+            --exclude docs/screenshots
+
+          mkdir -p src/server/modules/gara-radar-os docs/gara-radar legacy
+          if [ -d /tmp/gara-domain/workers/os ]; then
+            cp -R /tmp/gara-domain/workers/os/* src/server/modules/gara-radar-os/
+          fi
+          if [ -f /tmp/gara-domain/docs/GARA_RADAR_OS.md ]; then
+            cp /tmp/gara-domain/docs/GARA_RADAR_OS.md docs/gara-radar/
+          fi
+          if [ -f /tmp/gara-domain/docs/CONNECTORS.md ]; then
+            cp /tmp/gara-domain/docs/CONNECTORS.md docs/gara-radar/
+          fi
+          if [ -f /tmp/gara-domain/preview.html ]; then
+            cp /tmp/gara-domain/preview.html legacy/preview.html
+          fi
+          if [ -d /tmp/gara-domain/site ]; then
+            cp -R /tmp/gara-domain/site legacy/site
+          fi
+
+          python - <<'PY'
+          import json, pathlib, re
+
+          p = pathlib.Path("package.json")
+          data = json.loads(p.read_text())
+          data["name"] = "gara-radar"
+          data["description"] = "Gara Radar — Cloudflare-first public procurement intelligence and self-improving control room"
+          data["version"] = "0.2.0"
+          p.write_text(json.dumps(data, indent=2) + "\n")
+
+          w = pathlib.Path("wrangler.jsonc")
+          text = w.read_text()
+          text = re.sub(r'^\s*"account_id"\s*:\s*"[^"]+",?\s*\n', '', text, flags=re.M)
+          text = text.replace("vite-flare-starter", "gara-radar")
+          text = re.sub(r'"database_id"\s*:\s*"[^"]+"', '"database_id": "00000000-0000-0000-0000-000000000000"', text)
+          w.write_text(text)
+
+          i = pathlib.Path("index.html")
+          html = i.read_text()
+          html = html.replace("Vite Flare Starter", "Gara Radar")
+          i.write_text(html)
+          PY
+
+          cat > MIGRATION.md <<'EOF'
+          # Gara Radar — Vite Flare migration
+
+          This branch is an isolated migration candidate based on the mature MIT-licensed
+          `jezweb/vite-flare-starter` Cloudflare-native repository.
+
+          ## Rules
+
+          - Production remains on the existing `main` / Cloudflare Worker until this branch is verified.
+          - Gara Radar business logic is preserved under `src/server/modules/gara-radar-os/`.
+          - Existing static MVP is preserved under `legacy/`.
+          - Starter-owned Cloudflare resource IDs are intentionally removed/replaced with zero placeholders.
+          - No production D1/R2/DO resource is created or changed by this bootstrap.
+          - We will provision Gara Radar resources only after CI and the Control Room slice are green.
+
+          ## Target
+
+          Cloudflare Worker + Static Assets + D1 + KV + Workflows, with one authenticated
+          Control Room for Sources, Signals, Segments, Opportunities, Experiments, Fitness,
+          Learnings and Human Actions.
+          EOF
+
+          git add -A
+          git config user.name "gara-radar-bootstrap"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "bootstrap: import Vite Flare starter for Gara Radar migration"
+          git push --force-with-lease origin migration-vite-flare

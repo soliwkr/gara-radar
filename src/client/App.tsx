@@ -20,6 +20,10 @@ import { SectorsPage } from './pages/SectorsPage'
 import { PricingPage } from './pages/PricingPage'
 import { FaqPage } from './pages/FaqPage'
 import { BetaPage } from './pages/BetaPage'
+import { PrivacyPage } from './pages/PrivacyPage'
+import { TermsPage } from './pages/TermsPage'
+import { CookiePage } from './pages/CookiePage'
+import { DisclaimerPage } from './pages/DisclaimerPage'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { PublicLayout } from './layouts/PublicLayout'
 import { DashboardPage } from './pages/DashboardPage'
@@ -280,6 +284,10 @@ function App() {
                   <Route path="/prezzi" element={<PricingPage />} />
                   <Route path="/faq" element={<FaqPage />} />
                   <Route path="/beta" element={<BetaPage />} />
+                  <Route path="/privacy" element={<PrivacyPage />} />
+                  <Route path="/termini" element={<TermsPage />} />
+                  <Route path="/cookie" element={<CookiePage />} />
+                  <Route path="/disclaimer" element={<DisclaimerPage />} />
                 </Route>
 
                 {/* Auth routes (standalone, no layout) — bounce already-signed-in

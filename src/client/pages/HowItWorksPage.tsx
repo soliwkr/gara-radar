@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { ArrowRight, Bell, CheckCircle, FileSearch, Funnel, Target } from '@phosphor-icons/react'
+import { ArrowRight, Bell, CheckCircle, MagnifyingGlass, Funnel, Target } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -75,7 +75,7 @@ export function HowItWorksPage() {
             {[
               [Target, 'Profilo'],
               [Funnel, 'Filtro'],
-              [FileSearch, 'Scheda'],
+              [MagnifyingGlass, 'Scheda'],
               [Bell, 'Alert'],
             ].map(([Icon, label]) => {
               const C = Icon as typeof Target

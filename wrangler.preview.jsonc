@@ -13,8 +13,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "gara-radar-v2-preview",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_name": "studio-admin-db",
+      "database_id": "4d270196-734f-4d69-8799-bad826f47c7f",
       "migrations_dir": "drizzle"
     }
   ],

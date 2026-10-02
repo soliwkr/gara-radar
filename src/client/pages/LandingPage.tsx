@@ -5,7 +5,7 @@ import {
   CheckCircle,
   Clock,
   Crosshair,
-  FileSearch,
+  MagnifyingGlass,
   Funnel,
   MapPin,
   ShieldCheck,
@@ -58,7 +58,7 @@ const steps = [
     n: '03',
     title: 'Capisci subito cosa aprire',
     body: 'Importo, scadenza, area, categoria e motivo della rilevanza sono davanti. La fonte ufficiale resta sempre a un click.',
-    icon: FileSearch,
+    icon: MagnifyingGlass,
   },
   {
     n: '04',

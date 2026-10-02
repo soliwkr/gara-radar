@@ -192,6 +192,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Work',
     items: [
       { to: '/dashboard', label: 'Home', icon: House },
+      { to: '/dashboard/control-room', label: 'Gara Radar', icon: ChartBar },
       { to: '/dashboard/chat', label: 'AI Chat', icon: Chat, feature: 'chat' },
       { to: '/dashboard/inbox', label: 'Inbox', icon: Tray },
       { to: '/dashboard/jobs', label: 'Batch jobs', icon: Stack, feature: 'batchTasks' },

@@ -25,6 +25,67 @@ const opportunities = [
   }
 ];
 
+function formatMoneyCents(cents){
+  if(cents===null||cents===undefined)return "n.d.";
+  const eur=Number(cents)/100;
+  if(eur>=1_000_000_000)return "€ "+(eur/1_000_000_000).toLocaleString("it-IT",{maximumFractionDigits:2})+" mld";
+  if(eur>=1_000_000)return "€ "+(eur/1_000_000).toLocaleString("it-IT",{maximumFractionDigits:2})+" mln";
+  return "€ "+Math.round(eur).toLocaleString("it-IT");
+}
+function formatDeadline(value){
+  if(!value)return "n.d.";
+  try{
+    const d=new Date(value);
+    if(Number.isNaN(d.getTime()))return value;
+    const hasTime=String(value).includes("T");
+    const date=d.toLocaleDateString("it-IT",{day:"numeric",month:"long",year:"numeric",timeZone:"Europe/Rome"});
+    if(!hasTime)return date;
+    const time=d.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Rome"});
+    return date+" · "+time;
+  }catch{return value}
+}
+async function loadPublicOpportunities(env){
+  if(!env.DB)return opportunities;
+  try{
+    const q=await env.DB.prepare(`SELECT id,title,buyer,place_of_execution,territory,province,amount_cents,deadline,cpv,category,relevance_note,source_url,cig
+      FROM gr_tenders
+      WHERE verification_status='VERIFIED' AND public_visible=1
+        AND (deadline IS NULL OR deadline >= ?)
+      ORDER BY CASE WHEN deadline IS NULL THEN 1 ELSE 0 END, deadline ASC
+      LIMIT 20`).bind(new Date().toISOString()).all();
+    const rows=q.results||[];
+    if(!rows.length)return opportunities;
+    return rows.map(r=>({
+      id:r.id,
+      title:r.title,
+      buyer:r.buyer,
+      area:r.place_of_execution||r.province||r.territory||"Lazio",
+      amount:formatMoneyCents(r.amount_cents),
+      deadline:formatDeadline(r.deadline),
+      category:r.cpv?("CPV "+r.cpv):(r.category||"Da verificare"),
+      note:r.relevance_note||"Opportunità verificata sulla fonte pubblica.",
+      source:r.source_url,
+      cig:r.cig||null
+    }));
+  }catch(e){
+    return opportunities;
+  }
+}
+async function loadSupplyStats(env){
+  if(!env.DB)return {verified:opportunities.length,pending:0,rejected:0,total:opportunities.length};
+  try{
+    const q=await env.DB.prepare("SELECT verification_status, COUNT(*) c FROM gr_tenders GROUP BY verification_status").all();
+    const out={verified:0,pending:0,rejected:0,total:0};
+    for(const r of q.results||[]){
+      const n=Number(r.c||0);out.total+=n;
+      if(r.verification_status==="VERIFIED")out.verified=n;
+      if(r.verification_status==="PENDING")out.pending=n;
+      if(r.verification_status==="REJECTED")out.rejected=n;
+    }
+    return out;
+  }catch{return {verified:opportunities.length,pending:0,rejected:0,total:opportunities.length}}
+}
+
 const css = `
 :root{--bg:#f5f6f1;--paper:#fff;--ink:#11150e;--muted:#687064;--line:#dfe3da;--accent:#cfff39;--accent2:#a8ed00;--dark:#10150d;--radius:22px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55}a{color:inherit;text-decoration:none}button,input,select{font:inherit}
@@ -67,9 +128,9 @@ function opportunityCard(o){
  return `<article class="op-card"><div class="op-top"><span class="verified">VERIFICATA</span><span class="deadline">Scade ${esc(o.deadline)}</span></div><h3>${esc(o.title)}</h3><div class="entity">${esc(o.buyer)} · ${esc(o.area)}</div><div class="metrics"><div class="metric"><small>Importo</small><strong>${esc(o.amount)}</strong></div><div class="metric"><small>Area</small><strong>${esc(o.area)}</strong></div><div class="metric"><small>Categoria</small><strong>${esc(o.category)}</strong></div></div><div class="reason"><b>Perché è nel radar:</b> ${esc(o.note)}</div><div class="op-actions"><a class="btn primary" href="${esc(o.source)}" target="_blank" rel="noopener noreferrer">Apri fonte ufficiale ↗</a><a class="btn secondary" href="/beta">Ricevi opportunità simili</a></div></article>`;
 }
 
-function home(){
+function home(publicOpportunities=opportunities){
  const body=`<section class="hero"><div class="shell"><span class="badge"><span class="dot"></span>Beta operativa · Impianti e lavori tecnici · Lazio</span><h1>Meno bandi da leggere.<br><span>Più gare da valutare.</span></h1><p class="lead">Gara Radar organizza le procedure pubbliche, le filtra sul profilo della tua impresa e ti mostra subito importo, scadenza, territorio e motivo della rilevanza.</p><div class="hero-cta"><a class="btn primary" href="/beta">Richiedi accesso →</a><a class="btn secondary" href="/gare">Guarda il radar</a></div><div class="proof"><span><i class="tick">✓</i>Fonti verificabili</span><span><i class="tick">✓</i>Nessun addebito in beta</span><span><i class="tick">✓</i>Requisiti sempre da verificare</span></div></div></section>
- <section class="section"><div class="shell"><div class="section-head"><div><div class="eyebrow">Radar pubblico</div><h2>Guarda prima i dati che contano.</h2><p class="section-intro">Le procedure marcate come verificate rimandano alla fonte pubblica utilizzata. Non nascondiamo la fonte dietro una scheda proprietaria.</p></div><a class="btn secondary" href="/gare">Tutte le gare →</a></div><div class="cards">${opportunities.map(opportunityCard).join("")}</div></div></section>
+ <section class="section"><div class="shell"><div class="section-head"><div><div class="eyebrow">Radar pubblico</div><h2>Guarda prima i dati che contano.</h2><p class="section-intro">Le procedure marcate come verificate rimandano alla fonte pubblica utilizzata. Non nascondiamo la fonte dietro una scheda proprietaria.</p></div><a class="btn secondary" href="/gare">Tutte le gare →</a></div><div class="cards">${publicOpportunities.slice(0,4).map(opportunityCard).join("")}</div></div></section>
  <section class="section alt"><div class="shell"><div class="section-head"><div><div class="eyebrow">Il problema</div><h2>Trovare bandi non basta.</h2><p class="section-intro">Il lavoro vero è capire quali procedure meritano attenzione prima di aprire decine di portali, allegati e disciplinari.</p></div></div><div class="grid3"><div class="feature"><div class="icon">↗</div><h3>La fonte resta visibile</h3><p>Ogni opportunità verificata rimanda alla pubblicazione utilizzata. Gara Radar non sostituisce il disciplinare.</p></div><div class="feature"><div class="icon">◎</div><h3>Rilevanza, non volume</h3><p>Il valore non è mostrarti più bandi. È ridurre quelli che non meritano neppure di essere aperti.</p></div><div class="feature"><div class="icon">◷</div><h3>Scadenze davanti</h3><p>Le finestre utili vengono messe in evidenza perché un bando trovato tardi vale poco.</p></div></div></div></section>
  <section class="section"><div class="shell"><div class="eyebrow">Come funziona</div><h2>Un filtro operativo, non un altro portale da controllare.</h2><div class="steps"><div class="step"><div class="num">01</div><h3>Imposti il profilo</h3><p>Attività, territori, categorie e fascia economica.</p></div><div class="step"><div class="num">02</div><h3>Il radar riduce il rumore</h3><p>Le procedure vengono confrontate con il tuo profilo.</p></div><div class="step"><div class="num">03</div><h3>Capisci cosa aprire</h3><p>Importo, scadenza, area e motivo della rilevanza sono davanti.</p></div><div class="step"><div class="num">04</div><h3>Ricevi gli aggiornamenti</h3><p>Salvi ciò che interessa e ricevi alert mirati.</p></div></div><div style="margin-top:28px"><a class="btn secondary" href="/come-funziona">Vedi il processo completo →</a></div></div></section>
  <section class="section dark-band"><div class="shell dark-grid"><div><div class="eyebrow">Partenza controllata</div><h2>Prima facciamo bene un segmento. Poi allarghiamo.</h2><p class="section-intro">La beta parte da impianti e lavori tecnici nel Lazio. Nuovi settori e territori entrano solo quando fonti e volume delle opportunità sono abbastanza solidi.</p><div class="hero-cta"><a class="btn lime" href="/settori">Vedi i settori</a><a class="btn secondary" style="border-color:#394237;color:white" href="/prezzi">Prezzi e beta</a></div></div><div class="dark-list"><div class="dark-item"><b>Territorio</b><span>Parti dalle aree in cui lavori davvero.</span></div><div class="dark-item"><b>Profilo</b><span>Attività, categorie e fascia di opportunità.</span></div><div class="dark-item"><b>Priorità</b><span>Una spiegazione sintetica del perché vale la pena aprire una gara.</span></div></div></div></section>
@@ -77,8 +138,8 @@ function home(){
  return layout("Gara Radar — Gare pubbliche rilevanti per la tua impresa","Scouting e prima selezione delle gare pubbliche con fonti verificabili, scadenze e territorio in evidenza.",body,"/");
 }
 
-function gare(){
- const body=`<section class="page-hero"><div class="shell"><span class="badge"><span class="dot"></span>Radar pubblico</span><h1>Opportunità aperte,<br>con la fonte davanti.</h1><p>Questa pagina mostra solo procedure che abbiamo verificato manualmente durante la beta. La copertura automatica viene ampliata senza inventare dati mancanti.</p></div></section><section class="section"><div class="shell"><div class="cards">${opportunities.map(opportunityCard).join("")}</div><div class="notice" style="margin-top:18px">Gara Radar è un servizio informativo. La presenza di una procedura nel radar non implica che la tua impresa possieda i requisiti di partecipazione.</div><div class="center" style="margin-top:32px"><a class="btn primary" href="/beta">Ricevi il radar sul tuo profilo →</a></div></div></section>`;
+function gare(publicOpportunities=opportunities){
+ const body=`<section class="page-hero"><div class="shell"><span class="badge"><span class="dot"></span>Radar pubblico</span><h1>Opportunità aperte,<br>con la fonte davanti.</h1><p>Questa pagina mostra solo procedure che abbiamo verificato manualmente durante la beta. La copertura automatica viene ampliata senza inventare dati mancanti.</p></div></section><section class="section"><div class="shell"><div class="cards">${publicOpportunities.map(opportunityCard).join("")}</div><div class="notice" style="margin-top:18px">Gara Radar è un servizio informativo. La presenza di una procedura nel radar non implica che la tua impresa possieda i requisiti di partecipazione.</div><div class="center" style="margin-top:32px"><a class="btn primary" href="/beta">Ricevi il radar sul tuo profilo →</a></div></div></section>`;
  return layout("Gare aperte — Gara Radar","Opportunità pubbliche verificate per impianti e lavori tecnici nel Lazio.",body,"/gare");
 }
 
@@ -214,6 +275,8 @@ export default {
  async fetch(request,env){
   const url=new URL(request.url),path=url.pathname.replace(/\/+$/,"")||"/";
   if(path==="/api/health")return Response.json({ok:true,service:"gara-radar",version:"public-site-2026-10-02"});
+  if(path==="/api/tenders"){const data=await loadPublicOpportunities(env);return Response.json({count:data.length,tenders:data},{headers:{"cache-control":"public, max-age=60"}});}
+  if(path==="/api/supply/status"){return Response.json(await loadSupplyStats(env),{headers:{"cache-control":"no-store"}});}
   if(path==="/api/stripe/webhook"&&request.method==="POST"){const raw=await request.text();const ok=await verifyStripeSignature(raw,request.headers.get("Stripe-Signature"),env.STRIPE_WEBHOOK_SECRET);if(!ok)return new Response("invalid signature",{status:400});let event;try{event=JSON.parse(raw)}catch{return new Response("bad json",{status:400})}await handleStripeEvent(env,event);return new Response("ok",{status:200});}
   if(path==="/api/event"&&request.method==="POST"){let p={};try{p=await request.json()}catch{};await track(env,p);return new Response(null,{status:204});}
   if(path==="/api/signup"&&request.method==="POST"){
@@ -228,8 +291,8 @@ export default {
   if(path==="/robots.txt")return new Response("User-agent: *\nAllow: /\nSitemap: "+SITE+"/sitemap.xml\n",{headers:{"content-type":"text/plain; charset=utf-8"}});
   if(path==="/sitemap.xml"){const paths=["/","/gare","/come-funziona","/settori","/prezzi","/faq","/beta","/abbonati","/grazie","/dati","/privacy","/termini","/cookie","/disclaimer"];return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+paths.map(p=>"<url><loc>"+SITE+p+"</loc></url>").join("")+"</urlset>",{headers:{"content-type":"application/xml; charset=utf-8"}});}
   let html;
-  if(path==="/")html=home();
-  else if(path==="/gare")html=gare();
+  if(path==="/"){const data=await loadPublicOpportunities(env);html=home(data);}
+  else if(path==="/gare"){const data=await loadPublicOpportunities(env);html=gare(data);}
   else if(path==="/come-funziona")html=comeFunziona();
   else if(path==="/settori")html=settori();
   else if(path==="/prezzi")html=prezzi();

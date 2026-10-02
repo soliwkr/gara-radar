@@ -43,8 +43,11 @@ function PublicFooter() {
             <Target className="size-5" /> Gara Radar
           </Link>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Servizio informativo per la ricerca e la prima selezione di opportunità negli appalti
-            pubblici. Le verifiche definitive vanno sempre effettuate sui documenti ufficiali.
+            Servizio indipendente di scouting e prima selezione di opportunità negli appalti pubblici.
+            Gara Radar non è ANAC, non è una stazione appaltante e non sostituisce la documentazione ufficiale.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Contatto privacy: <a className="underline hover:text-foreground" href="mailto:privacy@gararadar.it">privacy@gararadar.it</a>
           </p>
         </div>
         <div className="grid grid-cols-2 gap-6 text-sm">
@@ -55,16 +58,19 @@ function PublicFooter() {
             <Link className="block text-muted-foreground hover:text-foreground" to="/prezzi">Prezzi</Link>
           </div>
           <div className="space-y-2">
-            <div className="font-medium">Supporto</div>
-            <Link className="block text-muted-foreground hover:text-foreground" to="/faq">FAQ</Link>
-            <Link className="block text-muted-foreground hover:text-foreground" to="/beta">Accesso beta</Link>
+            <div className="font-medium">Legale</div>
+            <Link className="block text-muted-foreground hover:text-foreground" to="/privacy">Privacy</Link>
+            <Link className="block text-muted-foreground hover:text-foreground" to="/termini">Termini</Link>
+            <Link className="block text-muted-foreground hover:text-foreground" to="/cookie">Cookie</Link>
+            <Link className="block text-muted-foreground hover:text-foreground" to="/disclaimer">Disclaimer</Link>
+            <a className="block text-muted-foreground hover:text-foreground" href="mailto:privacy@gararadar.it">Contatto privacy</a>
           </div>
         </div>
       </div>
       <div className="border-t border-border">
         <div className="container mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <span>© 2026 Gara Radar</span>
-          <span>Beta · Nessuna promessa di ammissibilità o aggiudicazione</span>
+          <span>Gara Radar · Beta 2026</span>
+          <span>Servizio indipendente · Nessuna promessa di ammissibilità o aggiudicazione</span>
         </div>
       </div>
     </footer>

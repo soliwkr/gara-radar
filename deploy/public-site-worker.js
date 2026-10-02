@@ -124,6 +124,53 @@ function layout(title,description,body,path="/"){
 </script></body></html>`;
 }
 
+async function loadProspectRadar(env,slug){
+  if(!env.DB)return null;
+  try{
+    const prospect=await env.DB.prepare(`SELECT id,slug,company_name,town,province,segment,fit_reason
+      FROM gr_prospects WHERE slug=? AND status='QUALIFIED' LIMIT 1`).bind(slug).first();
+    if(!prospect)return null;
+    const q=await env.DB.prepare(`SELECT
+        m.fit_score,m.reason,
+        t.id,t.title,t.buyer,t.place_of_execution,t.territory,t.province,t.amount_cents,t.deadline,t.cpv,t.category,t.relevance_note,t.source_url,t.cig
+      FROM gr_prospect_matches m
+      JOIN gr_tenders t ON t.id=m.tender_id
+      WHERE m.prospect_id=? AND m.status='PROPOSED'
+        AND t.verification_status='VERIFIED' AND t.public_visible=1
+        AND (t.deadline IS NULL OR t.deadline >= ?)
+      ORDER BY m.fit_score DESC
+      LIMIT 3`).bind(prospect.id,new Date().toISOString()).all();
+    const matches=(q.results||[]).map(r=>({
+      id:r.id,
+      title:r.title,
+      buyer:r.buyer,
+      area:r.place_of_execution||r.province||r.territory||"Lazio",
+      amount:formatMoneyCents(r.amount_cents),
+      deadline:formatDeadline(r.deadline),
+      category:r.cpv?("CPV "+r.cpv):(r.category||"Da verificare"),
+      note:r.reason||r.relevance_note||"Potenzialmente coerente con il profilo.",
+      source:r.source_url,
+      cig:r.cig||null
+    }));
+    return {prospect,matches};
+  }catch{return null}
+}
+
+function prospectRadarPage(data){
+  const p=data.prospect,matches=data.matches;
+  const body=`<section class="page-hero"><div class="shell"><span class="badge"><span class="dot"></span>Mini Radar · ${esc(p.company_name)}</span><h1>Abbiamo filtrato le opportunità aperte sul vostro profilo.</h1><p>Profilo usato: ${esc(p.segment)} · ${esc(p.town||"Lazio")}. Queste procedure sono potenzialmente coerenti: requisiti, SOA e condizioni di partecipazione vanno verificati sulla fonte ufficiale.</p></div></section>
+  <section class="section"><div class="shell">
+    <div class="section-head"><div><div class="eyebrow">Selezione attuale</div><h2>${matches.length} opportunità da controllare.</h2><p class="section-intro">Non è una certificazione di ammissibilità. È una prima selezione per evitare di aprire gare palesemente fuori profilo.</p></div></div>
+    <div class="cards">${matches.length?matches.map(opportunityCard).join(""):'<div class="notice">Al momento non ci sono opportunità pubbliche sufficientemente coerenti da mostrare. Preferiamo non riempire il radar con rumore.</div>'}</div>
+    <div class="notice" style="margin-top:18px"><b>Perché avete ricevuto questo radar:</b> ${esc(p.fit_reason||"Il vostro profilo pubblico indica attività coerenti con il segmento in test.")}</div>
+    <div class="center" style="margin-top:32px"><h2 style="font-size:32px">Se queste sono gare che valutereste davvero, il radar può continuare.</h2><p class="section-intro max700">Founding Radar: €9,90/mese, cancellabile. Nuove opportunità filtrate, fonti ufficiali e alert ricorrenti.</p><div class="hero-cta" style="justify-content:center"><a class="btn primary" href="/abbonati">Continua con Founding Radar →</a><a class="btn secondary" href="/come-funziona">Come funziona</a></div></div>
+  </div></section>`;
+  const title="Mini Radar per "+p.company_name+" — Gara Radar";
+  const description="Selezione di opportunità pubbliche potenzialmente coerenti con il profilo di "+p.company_name+".";
+  const canonical=SITE+"/radar/"+encodeURIComponent(p.slug);
+  return `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${canonical}"><meta name="theme-color" content="#10150d"><style>${css}</style></head><body>${header()}<main>${body}</main>${footer()}<script>async function grEvent(type,meta){try{navigator.sendBeacon("/api/event",new Blob([JSON.stringify({type:type,path:location.pathname,meta:meta||{},at:new Date().toISOString()})],{type:"application/json"}))}catch{}}grEvent("MINI_RADAR_VIEW",{company:${JSON.stringify(p.company_name)}});document.addEventListener("click",function(e){var a=e.target.closest("a");if(!a)return;if(a.href&&a.hostname!==location.hostname)grEvent("SOURCE_CLICK",{href:a.href,company:${JSON.stringify(p.company_name)}});});</script></body></html>`;
+}
+
 function opportunityCard(o){
  return `<article class="op-card"><div class="op-top"><span class="verified">VERIFICATA</span><span class="deadline">Scade ${esc(o.deadline)}</span></div><h3>${esc(o.title)}</h3><div class="entity">${esc(o.buyer)} · ${esc(o.area)}</div><div class="metrics"><div class="metric"><small>Importo</small><strong>${esc(o.amount)}</strong></div><div class="metric"><small>Area</small><strong>${esc(o.area)}</strong></div><div class="metric"><small>Categoria</small><strong>${esc(o.category)}</strong></div></div><div class="reason"><b>Perché è nel radar:</b> ${esc(o.note)}</div><div class="op-actions"><a class="btn primary" href="${esc(o.source)}" target="_blank" rel="noopener noreferrer">Apri fonte ufficiale ↗</a><a class="btn secondary" href="/beta">Ricevi opportunità simili</a></div></article>`;
 }
@@ -291,7 +338,8 @@ export default {
   if(path==="/robots.txt")return new Response("User-agent: *\nAllow: /\nSitemap: "+SITE+"/sitemap.xml\n",{headers:{"content-type":"text/plain; charset=utf-8"}});
   if(path==="/sitemap.xml"){const paths=["/","/gare","/come-funziona","/settori","/prezzi","/faq","/beta","/abbonati","/grazie","/dati","/privacy","/termini","/cookie","/disclaimer"];return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+paths.map(p=>"<url><loc>"+SITE+p+"</loc></url>").join("")+"</urlset>",{headers:{"content-type":"application/xml; charset=utf-8"}});}
   let html;
-  if(path==="/"){const data=await loadPublicOpportunities(env);html=home(data);}
+  if(path.startsWith("/radar/")){const slug=decodeURIComponent(path.slice("/radar/".length));const data=await loadProspectRadar(env,slug);if(!data)return new Response("Radar non trovato",{status:404,headers:{"content-type":"text/plain; charset=utf-8"}});html=prospectRadarPage(data);}
+  else if(path==="/"){const data=await loadPublicOpportunities(env);html=home(data);}
   else if(path==="/gare"){const data=await loadPublicOpportunities(env);html=gare(data);}
   else if(path==="/come-funziona")html=comeFunziona();
   else if(path==="/settori")html=settori();

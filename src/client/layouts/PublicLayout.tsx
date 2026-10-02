@@ -1,40 +1,33 @@
-/**
- * Public layout for landing and auth pages — a thin <AppShell> composition.
- * Header + footer + full-width main (pages bring their own container widths).
- *
- * ⚠️  SECURITY: Update VITE_APP_NAME and VITE_FOOTER_TEXT env vars
- * to rebrand for production (see src/shared/config/app.ts)
- */
 import { Outlet, Link } from 'react-router'
+import { Radar, ArrowRight } from '@phosphor-icons/react'
 import { AppShell } from '@/components/ui/app-shell'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/client/components/theme-toggle'
-import { appConfig, getLogoUrl } from '@/shared/config/app'
-import { useSession } from '@/client/lib/auth'
 
 function PublicHeader() {
-  const { data: session } = useSession()
-  // signIn wordmark logo (falls back to plain text name when not set).
-  const wordmark = getLogoUrl('signIn')
   return (
-    <header className="border-b border-border">
-      <div className="container mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold flex items-center gap-2">
-          {wordmark ? (
-            <img src={wordmark} alt={appConfig.name} className="h-7 w-auto" />
-          ) : (
-            <span>{appConfig.name}</span>
-          )}
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur">
+      <div className="container mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
+        <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+          <span className="grid size-8 place-items-center rounded-full bg-foreground text-background">
+            <Radar className="size-4" />
+          </span>
+          <span>Gara Radar</span>
         </Link>
-        <div className="flex items-center gap-4">
+
+        <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+          <Link className="hover:text-foreground" to="/come-funziona">Come funziona</Link>
+          <Link className="hover:text-foreground" to="/settori">Per chi</Link>
+          <Link className="hover:text-foreground" to="/prezzi">Prezzi</Link>
+          <Link className="hover:text-foreground" to="/faq">FAQ</Link>
+        </nav>
+
+        <div className="flex items-center gap-2">
           <ThemeToggle />
-          {session?.user ? (
-            <Button render={<Link to="/dashboard" />}>Open Dashboard</Button>
-          ) : (
-            <Button variant="ghost" render={<Link to="/sign-in" />}>
-              Sign In
-            </Button>
-          )}
+          <Button render={<Link to="/beta" />}>
+            Richiedi accesso
+            <ArrowRight className="ml-2 size-4" />
+          </Button>
         </div>
       </div>
     </header>
@@ -42,12 +35,37 @@ function PublicHeader() {
 }
 
 function PublicFooter() {
-  const footerText =
-    appConfig.footerText || `© ${new Date().getFullYear()} ${appConfig.name}. MIT Licensed.`
   return (
-    <footer className="border-t border-border py-8">
-      <div className="container mx-auto max-w-6xl px-4 text-center text-muted-foreground text-sm">
-        <p>{footerText}</p>
+    <footer className="border-t border-border">
+      <div className="container mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.2fr_.8fr]">
+        <div>
+          <Link to="/" className="flex items-center gap-2 font-semibold">
+            <Radar className="size-5" /> Gara Radar
+          </Link>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+            Servizio informativo per la ricerca e la prima selezione di opportunità negli appalti
+            pubblici. Le verifiche definitive vanno sempre effettuate sui documenti ufficiali.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-6 text-sm">
+          <div className="space-y-2">
+            <div className="font-medium">Prodotto</div>
+            <Link className="block text-muted-foreground hover:text-foreground" to="/come-funziona">Come funziona</Link>
+            <Link className="block text-muted-foreground hover:text-foreground" to="/settori">Settori</Link>
+            <Link className="block text-muted-foreground hover:text-foreground" to="/prezzi">Prezzi</Link>
+          </div>
+          <div className="space-y-2">
+            <div className="font-medium">Supporto</div>
+            <Link className="block text-muted-foreground hover:text-foreground" to="/faq">FAQ</Link>
+            <Link className="block text-muted-foreground hover:text-foreground" to="/beta">Accesso beta</Link>
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-border">
+        <div className="container mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>© 2026 Gara Radar</span>
+          <span>Beta · Nessuna promessa di ammissibilità o aggiudicazione</span>
+        </div>
       </div>
     </footer>
   )

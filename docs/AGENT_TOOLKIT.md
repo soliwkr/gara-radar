@@ -1,0 +1,401 @@
+# Agent Toolkit
+
+The chat module ships with a modular agent toolkit in
+`src/server/modules/chat/tools/`. Tools are auto-included based on which
+env bindings are configured and which connectors the user has wired up.
+
+Every tool is a `ToolDefinition<Input, Output>` from
+`src/shared/agent/tool.ts` — server execute + I/O Zod schemas + optional
+client render metadata in one object. See
+`.claude/rules/one-file-tool-definitions.md`.
+
+---
+
+## Tool modules
+
+| Module | Tools | Always present? |
+|---|---|---|
+| **core** | `get_server_time`, `get_model_info`, `calculate` | Yes |
+| **memory** | `remember`, `recall`, `search_memory`, `forget` | Yes (user_meta D1 table) |
+| **ui** | `offer_choices`, `show_alert`, `show_contact`, `collect_info`, `ask_questions`, `show_data_table`, `show_metric_cards`, `show_timeline`, `show_progress`, `show_comparison`, `confirm_action`, `show_map` | Yes (inline React components) |
+| **skills** | `list_skills`, `load_skill`, `read_skill_resource`, `run_skill_script`, `create_skill`, `install_skill`, `toggle_skill` | Yes (script execution: function-style JS via the `LOADER` Worker Loader binding, other scripts via `SANDBOX`; degrades to a clear error when neither is bound) |
+| **code** | `run_python` (R2 file staging + artifact harvest), `run_shell`, `run_js`, `generate_document` (markdown → docx/xlsx/pptx) | If `SANDBOX` container binding (Workers Paid) |
+| **site** | `site_serve` (background server + quick-tunnel preview URL), `site_stop` | Same `SANDBOX` gate — see §Sites |
+| **delegate** | `delegate` | Yes (subagent pattern) |
+| **audio** | `transcribe_audio` (Deepgram Nova 3), `speak_text` (Deepgram Aura 2, 12 voices, Aura 1 fallback) | Yes (AI binding, no external keys) |
+| **todo** | `todo_add`, `todo_update`, `todo_list`, `todo_clear` | Yes (persisted via user_meta) |
+| **config-diff** | `propose_patch` | Yes — stages a change for user approval |
+| **browser** | `browser_markdown`, `browser_extract`, `browser_screenshot`, `browser_links`, `browser_content` | If `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` |
+| **search** | `web_search`, `trusted_search` | Provider key set; trusted_search also needs `SEARCH_TRUSTED_DOMAINS` |
+| **places** | `places_search`, `places_details` | If `GOOGLE_PLACES_API_KEY` |
+| **files** | `fs_list`, `fs_read`, `fs_write`, `fs_delete` | If `FILES` R2 bucket bound |
+| **google-workspace — Gmail** | `gmail_search`, `gmail_get_message`, `gmail_list_labels`, `gmail_draft`, `gmail_reply`, `gmail_send` | Per-user OAuth |
+| **google-workspace — Drive** | `drive_search`, `drive_get_file`, `drive_create_folder` | Same |
+| **google-workspace — Tasks** | `tasks_list`, `tasks_create` | Same |
+| **google-workspace — Calendar** | `calendar_upcoming`, `calendar_list_events`, `calendar_get_event`, `calendar_find_free_slot`, `calendar_create`, `calendar_update_event`, `calendar_delete_event` | Same |
+| **google-workspace — Docs** | `docs_search`, `docs_get`, `docs_create`, `docs_append` | Same |
+| **google-workspace — Sheets** | `sheets_list_tabs`, `sheets_read_range`, `sheets_append_row`, `sheets_write_range` | Same |
+| **microsoft-workspace — Outlook** | `outlook_search`, `outlook_get_message`, `outlook_send` | Per-user OAuth |
+| **microsoft-workspace — OneDrive** | `onedrive_search`, `onedrive_get_file` | Same |
+| **microsoft-workspace — Calendar** | `msoffice_calendar_list`, `msoffice_calendar_create` (Teams meeting link via `isOnlineMeeting: true`) | Same |
+| **slack / notion / atlassian** | Scaffolded (OAuth + cards + tokens). Implementations in GitHub issues #21, #22, #23. | Connectors page auto-shows cards when `<PROVIDER>_CLIENT_ID` + `_SECRET` set |
+| **sql** | `sql_schema`, `sql_query` — read-only SELECT over an isolated reference D1 | If `REFERENCE_DB` binding (see “Read-only SQL” below) |
+
+---
+
+## Adding a new tool (canonical pattern)
+
+```ts
+// src/server/modules/chat/tools/my-domain.ts
+import { z } from 'zod'
+import { Sparkle } from '@phosphor-icons/react'
+import type { ToolDefinition } from '@/shared/agent'
+
+const MyInput = z.object({ query: z.string() })
+const MyOutput = z.object({ count: z.number(), items: z.array(z.unknown()) })
+
+export const myToolDefinition: ToolDefinition<
+  z.infer<typeof MyInput>,
+  z.infer<typeof MyOutput>
+> = {
+  name: 'my_tool',
+  description: 'What the model sees when deciding whether to call.',
+  inputSchema: MyInput,
+  outputSchema: MyOutput,
+  isAvailable: (ctx) => !!ctx.env.MY_BINDING,
+  needsApproval: false,
+  execute: async (input, ctx) => {
+    return { count: 0, items: [] }
+  },
+  render: {
+    icon: Sparkles,
+    displayName: 'My Tool',
+    summary: (output) => `${output.count} results`,
+  },
+}
+
+export const myDomainDefinitions = [myToolDefinition] as ToolDefinition<unknown, unknown>[]
+```
+
+Register in `src/server/modules/chat/tools/index.ts` — add to the
+`allDefinitions` array. `collectAvailableTools(allDefinitions, ctx)`
+handles Zod validation, telemetry, AI SDK adapter wiring, and `isAvailable`
+filtering.
+
+Custom client renderer? Drop a renderer file in
+`src/client/modules/chat/components/tool-renderers/`, import the output
+type via `import type { MyOutput } from '...'`. Vite tree-shakes
+server-only code from client bundles.
+
+---
+
+## Google Workspace — privileged write ops
+
+Every write tool (`gmail_send`, `gmail_reply`, `calendar_create`,
+`calendar_update_event`, `calendar_delete_event`, `docs_create`,
+`docs_append`, `sheets_append_row`, `sheets_write_range`) has
+`needsApproval: true`. The agent stops, shows the user the proposed args,
+and only executes after approval.
+
+These ops are also in `PRIVILEGED_TOOLS` — not even offered to the model
+unless the latest user message contains an unlock keyword ("reply",
+"schedule", "append", "write", etc.). `gmail_draft` is intentionally NOT
+privileged — drafts have no external effect.
+
+### Scopes required
+
+Set up at Connectors → Google Workspace:
+
+- `gmail.readonly` — gmail read tools
+- `gmail.send` — `gmail_send`, `gmail_reply`
+- `gmail.compose` — `gmail_draft`
+- `drive.readonly` — `drive_search`, `docs_search`, `docs_get`
+- `calendar.events` — all calendar tools
+- `documents` (or `documents.readonly`) — `docs_create`, `docs_append`, `docs_get`
+- `spreadsheets.readonly` — `sheets_list_tabs`, `sheets_read_range`
+- `spreadsheets` — `sheets_append_row`, `sheets_write_range`
+- `drive.file` (or `drive`) — `drive_create_folder`
+- `tasks.readonly` — `tasks_list`
+- `tasks` — `tasks_create`
+
+### Service notes
+
+- **Docs `docs_append`** supports markdown-ish input: `#`/`##`/`###` →
+  H1/H2/H3, blank-line-separated paragraphs. Tables/images/inline objects
+  not yet supported.
+- **Sheets** ranges use A1 notation (`Sheet1!A1:D20`, `Budget!A:A`).
+  `valueInputOption: 'USER_ENTERED'` (default) parses formulas + dates
+  like the UI does; `RAW` stores the string verbatim.
+
+---
+
+## Connector scaling — registry + per-user filter
+
+Every native OAuth connector (Google, Microsoft, Slack, Notion,
+Atlassian, …) is declared once in
+`src/shared/config/connector-providers.ts`. Single source of truth —
+ConnectorsPage reads it to render cards, the toolkit reads it to filter
+tools per user, `.dev.vars.example` docs pull from it.
+
+Per-user settings live in `user_connector_settings` (D1): master switch
++ `enabledToolsJson` array per user per provider.
+`src/server/modules/connectors/settings.ts` exposes
+`getAllowedConnectorTools(env, userId)` which `buildChatTools` calls to
+filter the toolkit. When no settings row exists, the provider's
+`defaultEnabledTools` apply (the read-only subset). Master switch off =
+entire provider skipped, zero context cost.
+
+### Adding a new connector
+
+1. Add an entry to `CONNECTOR_PROVIDERS` with `id`, `toolNames`,
+   `defaultEnabledTools`, `envVars`, `developerPortalUrl`.
+2. Create `src/server/modules/<id>/db/schema.ts`, `routes.ts`,
+   `tokens.ts`. Typical OAuth providers use `buildStubRoutes` +
+   `defineProviderTokenTable` helpers in
+   `src/server/modules/connectors/stub-provider.ts` — ships in ~40 LOC of config.
+3. Add tool definitions in `src/server/modules/chat/tools/<id>.ts`, one
+   `ToolDefinition` per entry in `toolNames`.
+4. Register routes in `src/server/index.ts`, tool defs in
+   `src/server/modules/chat/tools/index.ts`, schema in
+   `src/server/db/schema.ts`.
+5. The card renders automatically via `StubConnectorPanel` when mounted
+   in `ConnectorsPage.tsx` with `providerId` + logo SVG.
+
+Provider-specific OAuth quirks handled via `StubProviderConfig`:
+`includeRedirectUriInTokenExchange: false` for Notion (rejects
+`redirect_uri` in token exchange), `extraAuthParams` for Atlassian
+(needs `audience=api.atlassian.com` + `prompt=consent`),
+`fetchAccountInfo` callback for custom profile endpoints.
+
+---
+
+## Browser Rendering
+
+Use Cloudflare Browser Rendering's REST API directly — no
+Puppeteer/Playwright. Token at
+https://dash.cloudflare.com/profile/api-tokens with "Browser Rendering -
+Edit", set `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`.
+
+`browser_extract` is particularly powerful — uses the `/json` endpoint
+which runs Workers AI extraction natively, so you can pass
+natural-language prompts like "Extract product name, price, availability".
+
+---
+
+## Places (Google Places API New)
+
+`places_search` + `places_details` use the Places API (New). Set
+`GOOGLE_PLACES_API_KEY` (create at https://console.cloud.google.com →
+enable "Places API (New)", restrict to your Worker routes in production).
+
+The agent is auto-nudged via the system prompt to pair `places_search`
+with `show_map` so local-business queries render as a Leaflet map + card
+list rather than a wall of text. Same nudge fires if an MCP server
+exposes a tool named `google_local_places`.
+
+---
+
+## Search providers
+
+`SEARCH_PROVIDER` env var (default: `serper`). All normalised to
+`{ title, url, snippet, date }`.
+
+| Provider | Free tier | Setup |
+|---|---|---|
+| **Serper** (default) | 2,500 queries/month | serper.dev → `SERPER_API_KEY` |
+| Brave | $5 monthly credits | brave.com/search/api → `BRAVE_API_KEY` |
+| Tavily | 1,000 credits/month | tavily.com → `TAVILY_API_KEY` |
+| Exa | Paid | exa.ai → `EXA_API_KEY` |
+
+### Domain-scoped search — `trusted_search` (#89)
+
+Set `SEARCH_TRUSTED_DOMAINS` (comma-separated, e.g.
+`ato.gov.au, developers.cloudflare.com, docs.yourvendor.com`) and the
+agent gains a `trusted_search` tool pinned to those domains — for
+answers that must come from an authoritative source, not the open web.
+Unset, the tool never appears.
+
+Scoping is enforced twice: pushed to the provider where a native
+mechanism exists (Tavily `include_domains`, Exa `includeDomains`,
+`site:` operators for Serper/Brave), **and re-filtered server-side**
+against the allow-list (exact host or subdomain — `evil-example.com`
+does not match `example.com`; unparseable URLs are dropped). A provider
+that ignores its scope parameter degrades to fewer results, never to an
+off-list citation.
+
+> **Tavily gotcha baked in:** `include_domains` was historically
+> ignored under Tavily's legacy `{api_key}`-in-body auth (observed
+> fixed upstream 2026-07-17, but don't depend on it). The provider
+> impl uses Bearer-header auth — the current documented format — and
+> the server-side re-filter makes the scope hold either way.
+
+Forks with a fixed authority set can mint bespoke variants with
+`createScopedSearchTool({ name, displayName, description, domains })`
+from `server/modules/chat/tools/search.ts` (static `string[]` or a
+per-context resolver) and register them alongside their other tools.
+
+---
+
+## Read-only SQL over an isolated database (#77)
+
+`sql_query` lets the agent write its own `SELECT`s for analytical
+questions (aggregates, filters, joins) that no purpose-built tool
+expresses; `sql_schema` gives it exact table/column names first.
+
+**The security model is isolation, not sandboxing.** The tools bind
+ONLY to `REFERENCE_DB` — a separate D1 that holds non-sensitive data
+(mirrored external datasets, catalogues, published stats). Users,
+sessions, tokens, and per-user rows never live there, so even a
+validator bypass reaches nothing worth stealing. Never point the
+binding at the app database.
+
+The validator (`src/server/lib/sql-guard.ts`) is defence-in-depth:
+literals/comments stripped before keyword checks, single statement,
+SELECT/WITH only (no `WITH RECURSIVE`), no writes/DDL/PRAGMA/
+`sqlite_master`/blob functions, no CROSS or comma joins, ≤3 JOINs, and
+the row cap is pushed **into** the query (`SELECT * FROM (…) LIMIT n+1`)
+so the engine never materialises an unbounded result.
+
+Setup:
+
+```bash
+npx wrangler d1 create <your-app>-reference
+# add the REFERENCE_DB binding (commented example in wrangler.jsonc)
+```
+
+Feed it with the mirror module (`docs/ADDING_D1_MIRROR.md`) pointed at
+`REFERENCE_DB`, a one-off import, or a scheduled Workflow. Results
+return `{ columns, rows }`, which the shape-tier table renderer picks
+up automatically — no client code.
+
+---
+
+## Code execution + document generation
+
+`run_python`, `run_shell`, `run_js`, and `generate_document` use
+Cloudflare Sandbox (`@cloudflare/sandbox`) — isolated Linux containers.
+Each conversation gets its own sandbox (`user-<userId>-conv-<convId>`,
+falling back to `user-<userId>` for routines/agents without a
+conversation), so Python interpreter state and files persist across
+calls within a chat while the container is warm (~10 min idle sleep)
+and never leak between conversations.
+
+**Wiring** (all in place in this repo; forks on the free plan can remove
+it): `containers` block + `SANDBOX` DO binding + migration `v11` in
+`wrangler.jsonc`, `export { Sandbox }` in `src/server/index.ts`, and the
+project `Dockerfile` (base image tag must match the npm version —
+`0.12.3` ↔ `cloudflare/sandbox:0.12.3-python`). Docker must be running
+locally when you deploy. Containers bill active CPU + memory while a
+sandbox is awake. When the binding is missing the tools self-omit from
+the toolkit; `VITE_FEATURE_SANDBOX=false` (as a worker var) disables
+them explicitly.
+
+**`run_python` file round-trips**: `files: [{ r2Key, path? }]` stages
+the user's own stored files into the sandbox before the run (guarded by
+`isOwnedR2Key` — cross-tenant keys are refused before any I/O), and
+`outputs: ["/workspace/chart.png"]` harvests files back into FILES under
+`users/<userId>/sandbox/...` after the run, returned as
+`artifacts: [{ name, r2Key, size }]` and registered on the Files page.
+The `{ stdout, stderr, exitCode }` output matches the terminal shape
+renderer, so results render richly with zero client code.
+
+**`generate_document`** renders markdown → docx / xlsx / pptx with
+python-docx / openpyxl / python-pptx (baked into the Dockerfile) and
+returns the file as an artifact. Headings, lists, tables, code blocks
+and inline bold/italic/code are supported; each markdown table becomes
+an xlsx worksheet; each H1/H2 becomes a pptx slide. Code payloads are
+capped at 50KB per call.
+
+**Post-deploy verification** (the unit tests mock the sandbox — the
+container path needs a live deploy): send "run python: print(2+2)" in
+chat, then "generate a docx summarising this conversation", and confirm
+the artifact appears under Files.
+
+## Code Mode — compose tools in one execution (`code_mode`, pilot)
+
+Pilot of `@cloudflare/codemode` (#113, adoption step 4). Instead of the
+model chaining N tool calls through N round-trips (each intermediate
+result entering its context), it writes ONE JavaScript async arrow
+function that calls catalog tools as `codemode.<tool>(...)` — the whole
+composition runs inside an isolated dynamic Worker (the same `LOADER`
+Worker Loader binding skills scripts use) and only the final return
+value reaches the transcript.
+
+**Opt-in**: `CODEMODE=true` (worker var or secret) — OFF by default
+because the tool's description embeds generated TypeScript signatures
+for the exposed catalog, a real per-turn cost. Measured live: the
+curated 22-tool set costs ~13.7KB (~3.4K tokens) per turn; the naive
+"expose everything" version hit 98 tools / 69KB (~17K tokens), which is
+why curation is the design, not an optimisation. `code_mode_built`
+structured logs report both numbers per deployment.
+
+**Security model** (runtime-enforced): `globalOutbound: null` blocks all
+network from generated code; tool calls cross back via Workers RPC so
+credentials never enter the sandbox; codemode's `filterTools`
+structurally drops every `needsApproval` tool (entity_create can never
+appear, even if allowlisted); our allowlist further restricts to the
+read/compute tier — see `ALLOWED_NAMES` in
+`server/modules/chat/tools/code-mode.ts`. MCP tools are deliberately
+excluded from v1.
+
+**Failure semantics**: codemode's `runCode` throws on sandbox errors
+(including zod rejection of a composed tool's args); the wrapper
+converts these to `{ result: { error, hint } }` tool output so the model
+self-corrects instead of the stream dying. Live-verified: model passed
+an empty search query → read the error → fixed its code → composed
+successfully on the next call.
+
+**Graduation path**: `CodemodeRuntime` (a DO with durable execution
+ledger, pause-on-approval, replay-based resume, rollback) — wire it when
+composing side-effectful tools; the read-mostly pilot doesn't need it.
+
+## Sites — live previews from the sandbox (`site_serve` / `site_stop`)
+
+The capability tier above artifacts: an artifact is one self-contained
+document; a **site** is a real multi-file project in the conversation's
+sandbox — npm installs, build steps, a server — on a public preview URL.
+
+Flow: the agent scaffolds files under `/workspace/site` with the code
+tools, then `site_serve` starts the server as a background process
+(deterministic id per port → clean restarts), waits for the port, and
+opens a Cloudflare **quick tunnel** (`https://<random>.trycloudflare.com`).
+The WorkspacePanel gets a Sites tab with an inline live preview
+(CSP `frame-src` allows trycloudflare). Default command is a static
+`python3 -m http.server`; framework apps pass their dev-server command
+(must bind `0.0.0.0`).
+
+Scope honestly: this is a **preview, not a deployment** — the URL is
+public-but-unguessable, dies with the container (~10 min idle), and can
+change on revive. Durable options remain artifacts (share tokens) and
+Files. Custom-domain forks can upgrade to same-domain preview URLs with
+`sandbox.exposePort(port, { hostname })` + `proxyToSandbox(request, env)`
+early in the Worker fetch path — URL shape
+`https://<port>-<sandbox-id>-<token>.<your-domain>`, which needs
+wildcard DNS (unavailable on workers.dev, hence quick tunnels as the
+starter default). Deploy-to-permanent (VibeSDK-style Workers for
+Platforms dispatch) is a deliberate non-goal for the starter.
+
+## Skill scripts (`run_skill_script`)
+
+Skills can ship executable scripts under `scripts/` in their directory
+(bundled, R2, or GitHub — enumerated as resources automatically). The
+tool fetches + executes in one call, routing by script style:
+
+- **Function-style JS** (`export default async run(input, ctx)`) → the
+  agents-SDK Worker Loader runner: a per-run isolated dynamic worker
+  with **no network and no bindings**, `stdin` parsed as JSON into
+  `input`, return value comes back as `result`. Needs the
+  `worker_loaders` binding (`LOADER` in `wrangler.jsonc`) — no
+  container, no Docker, works on any plan with the beta.
+- **Everything else** (`.py`, `.sh`, script-style `.js`) → the
+  `SANDBOX` container with stdin piped, `{stdout, stderr, exitCode}`
+  output (terminal shape renderer).
+
+Worked example: `skills/compare-options/scripts/score.js` — weighted
+option ranking, so comparison arithmetic is deterministic instead of
+in-model. Interop note: our registry is also mountable as an SDK
+`SkillSource` via `userSkillSource(env, userId)`
+(`src/server/lib/ai/skills/sdk-source.ts`) — the shape a
+`@cloudflare/think` pilot would consume. `just-bash` (the SDK's
+loader-bash simulator, ~4 MB) is deliberately stubbed out of the build;
+see `src/server/lib/ai/skills/just-bash-stub.ts` to re-enable.

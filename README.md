@@ -2,6 +2,8 @@
 
 Gara Radar trova le gare pubbliche rilevanti per mestiere e territorio e le rende comprensibili senza linguaggio da ufficio gare.
 
+> **Shipping rule:** online prima, infrastruttura dopo.
+
 ## MVP
 
 Primo verticale: **impiantisti/elettricisti nel Lazio**.
@@ -15,22 +17,29 @@ Obiettivo business: **primo cliente sconosciuto pagante** prima di espandere pro
 - Hono
 - Tailwind CSS
 - Airtable come control room e database operativo MVP
-- Stripe solo quando il flusso dati e il valore sono validati
+- Stripe quando il flusso dati e il valore sono validati
 
-## Starter
+## Starter decision
 
-Il progetto parte dall'architettura dell'officiale **Cloudflare React Router + Hono Fullstack Template**:
-https://github.com/cloudflare/templates/tree/main/react-router-hono-fullstack-template
+Per arrivare online subito teniamo il **Cloudflare React Router + Hono Fullstack Template** già inizializzato.
 
-Scelta intenzionale: non usare un SaaS boilerplate pesante. Auth, D1, team, billing avanzato e dashboard admin vengono aggiunti solo se servono dopo la validazione.
+Abbiamo valutato starter SaaS più completi (auth, billing, DB, dashboard), ma non blocchiamo il lancio per una migrazione di boilerplate. Le parti SaaS verranno aggiunte quando servono, riusando componenti/starter maturi invece di reinventarle.
+
+## Preview
+
+- File statico zero-build: `preview.html`
+- Sito statico: `site/`
+- Workflow GitHub Pages predisposto: `.github/workflows/pages.yml`
+- Deploy Cloudflare: `npm run deploy`
 
 ## Regola di prodotto
 
-1. Prima dati reali.
-2. Poi matching utile.
-3. Poi landing + alert.
-4. Poi pagamento.
-5. Solo dopo infrastruttura aggiuntiva.
+1. Online oggi.
+2. Dati reali.
+3. Matching utile.
+4. Alert.
+5. Primo pagamento.
+6. Solo dopo: auth/billing/dashboard più ricchi.
 
 ## Sviluppo
 

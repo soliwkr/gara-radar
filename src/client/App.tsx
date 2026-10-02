@@ -34,6 +34,9 @@ const ResetPasswordPage = lazy(() =>
 const VerifyEmailPage = lazy(() =>
   import('./modules/auth/VerifyEmailPage').then((m) => ({ default: m.VerifyEmailPage }))
 )
+const ControlRoomPage = lazy(() =>
+  import('./modules/gara-radar/pages/ControlRoomPage').then((m) => ({ default: m.ControlRoomPage }))
+)
 const SettingsPage = lazy(() =>
   import('./modules/settings/pages/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 )
@@ -308,6 +311,7 @@ function App() {
                 >
                   {/* Dashboard index page */}
                   <Route index element={<DashboardPage />} />
+                  <Route path="control-room" element={<ControlRoomPage />} />
 
                   {/* Settings module - profile, password, theme, etc. */}
                   <Route path="settings" element={<SettingsPage />} />

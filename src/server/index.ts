@@ -72,6 +72,7 @@ import mirrorRoutes from './modules/mirror/routes'
 import llmsTxtRoutes from './modules/llms-txt/routes'
 import backupsRoutes from './modules/backups/routes'
 import garaRadarOsRoutes from './modules/gara-radar-os/routes'
+import garaRadarPublicRoutes from './modules/gara-radar-public/routes'
 import { routeAgentRequest } from 'agents'
 import { ScratchpadMcpAgent } from './modules/mcp-agents/scratchpad-mcp-agent'
 // Re-export DO class(es) so wrangler migrations can locate them. Every DO
@@ -409,6 +410,7 @@ app.route('/api/mirror', mirrorRoutes)
 app.route('/llms.txt', llmsTxtRoutes)
 app.route('/api/backups', backupsRoutes)
 app.route('/api/gara-radar-os', garaRadarOsRoutes)
+app.route('/api/public', garaRadarPublicRoutes)
 // Test-auth lives behind a TEST_AUTH_TOKEN env gate; if the secret
 // isn't set, every endpoint here returns 404. See module docstring.
 app.route('/api/test-auth', testAuthRoutes)

@@ -1,438 +1,41 @@
-// Cloudflare Workers Configuration
-// Documentation: https://developers.cloudflare.com/workers/configuration/
+// Gara Radar — Cloudflare-first migration target
+// Optional Vite Flare bindings stay in source as reference modules but are NOT
+// provisioned until Gara Radar needs them. This keeps the first deployment small.
 {
-  "name": "gara-radar",
-  // IMPORTANT: Remove account_id before committing to public repo
-  // Set via CLOUDFLARE_ACCOUNT_ID env var or wrangler will prompt
+  "name": "gara-radar-v2-preview",
   "compatibility_date": "2026-07-10",
   "compatibility_flags": ["nodejs_compat_v2"],
-
-  // Worker entry point (source file, NOT built file)
   "main": "./src/server/index.ts",
 
-  // Static Assets Configuration (Workers with Static Assets)
-  // https://developers.cloudflare.com/workers/static-assets/
-  //
-  // ⚠ Cache key is PATH ONLY — `?v=1.2.3` does NOT invalidate. Edge cache
-  //   busts only when the file's bytes change (etag updates automatically)
-  //   or via a CF API purge by URL. Plan asset cache-busting around
-  //   content-hashed filenames, not query strings.
   "assets": {
     "directory": "./dist/client",
-    // SPA routing - serve index.html for all non-asset routes
     "not_found_handling": "single-page-application",
-    // Only these paths invoke the Worker (everything else = FREE static serving)
-    //  - /api/*    — Hono REST routes
-    //  - /agents/* — Durable Object agents SDK WebSocket routing (`routeAgentRequest`)
-    //                Remove this entry if you're not using any DO agents.
-    //  - /llms.txt — generated agent-facing summary (llmstxt.org; Lighthouse
-    //                Agentic Browsing audit). See src/server/modules/llms-txt/.
     "run_worker_first": ["/api/*", "/agents/*", "/mcp/*", "/llms.txt"]
   },
 
-  // Cloudflare Bindings
-  // These are automatically typed in .wrangler/types/
-
-  // D1 Database (SQLite at edge)
-  // Create with: wrangler d1 create gara-radar-db
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "gara-radar-db",
+      "database_name": "gara-radar-v2-preview",
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "drizzle"
     }
-    ,
-    // Read-only SQL tool (#77, isolation-over-sandboxing). A SEPARATE
-    // database holding only non-sensitive reference data (mirrored
-    // datasets, catalogues) — NEVER point this at the app DB. The
-    // sql_query/sql_schema chat tools self-omit if you remove this
-    // binding. Forks: `npx wrangler d1 create <your-app>-reference`
-    // and swap the id (same as DB above).
-    {
-      "binding": "REFERENCE_DB",
-      "database_name": "gara-radar-reference",
-      "database_id": "00000000-0000-0000-0000-000000000000"
-    }
   ],
 
-  // R2 Storage (S3-compatible object storage)
-  // Create with: wrangler r2 bucket create gara-radar-avatars
-  "r2_buckets": [
-    {
-      "binding": "AVATARS",
-      "bucket_name": "gara-radar-avatars"
-    },
-    {
-      "binding": "FILES",
-      "bucket_name": "gara-radar-files"
-    },
-    {
-      "binding": "SKILLS",
-      "bucket_name": "gara-radar-skills"
-    },
-    {
-      // Data Lake — chunked R2 storage for oversized tool results.
-      // The chat tool adapter spills any tool output that exceeds the
-      // truncation budget (~12K chars) into this bucket and gives the
-      // agent a `data_ref` to read back via read_data / aggregate_data
-      // / export_data. Without this binding the truncation gate still
-      // works, but the agent only sees the preview, not the full data.
-      //
-      // CRITICAL: configure a 1-day lifecycle rule on this bucket so
-      // datasets auto-expire — the agent uses `data_ref` for at most a
-      // single conversation, and the bucket would otherwise grow
-      // unbounded. Run once per fork:
-      //   wrangler r2 bucket lifecycle add gara-radar-data-lake \\
-      //     auto-expire data/ --expire-days 1
-      "binding": "DATA_LAKE",
-      "bucket_name": "gara-radar-data-lake"
-    }
-  ],
-
-  // Vectorize — semantic memory for AutonomousAgent.recallSemantic.
-  // Opt-in: uncomment, then create the index + metadata indexes:
-  //   wrangler vectorize create agent-memory --dimensions=768 --metric=cosine
-  //   wrangler vectorize create-metadata-index agent-memory --property-name=ownerKey --type=string
-  //   wrangler vectorize create-metadata-index agent-memory --property-name=tags --type=string
-  //
-  // CRITICAL — metadata indexes MUST exist BEFORE you insert vectors,
-  // otherwise queries with filter:{ownerKey} return 0 matches even
-  // though the data is there. See .claude/rules/cloudflare-vectorize.md.
-  //
-  // Without this binding, AutonomousAgent.recallSemantic returns []
-  // (default) and agents work without semantic memory.
-  // "vectorize": [
-  //   {
-  //     "binding": "AGENT_MEMORY",
-  //     "index_name": "agent-memory"
-  //   }
-  // ],
-
-  // KV Namespace (key-value storage)
-  // Create with: wrangler kv namespace create CACHE
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "KV",
-  //     "id": "your-kv-id"
-  //   }
-  // ],
-
-  // Workers AI (for AI features)
-  "ai": {
-    "binding": "AI"
+  "vars": {
+    "APP_NAME": "Gara Radar",
+    "NODE_ENV": "preview",
+    "ENABLE_EMAIL_LOGIN": "true",
+    "ENABLE_EMAIL_SIGNUP": "true",
+    "ENABLE_MAGIC_LINK": "false",
+    "ENABLE_PASSKEYS": "false",
+    "VITE_APP_NAME": "Gara Radar",
+    "VITE_APP_ID": "gara-radar",
+    "VITE_TOKEN_PREFIX": "grr_",
+    "VITE_GITHUB_URL": "https://github.com/soliwkr/gara-radar",
+    "VITE_DEFAULT_BUILDER_MODE": "false"
   },
 
-  // Cloudflare Images (resize, crop, format conversion, background removal, face crop)
-  // https://developers.cloudflare.com/images/transform-images/bindings/
-  "images": {
-    "binding": "IMAGES"
-  },
-
-  // Cloudflare Media Transformations (video resize, clip, frame extraction, audio)
-  // https://developers.cloudflare.com/stream/transform-videos/
-  "media": {
-    "binding": "MEDIA"
-  },
-
-  // Vectorize (semantic search, RAG)
-  // Create with: npx wrangler vectorize create gara-radar-vectors --dimensions=768 --metric=cosine
-  // Create metadata indexes BEFORE inserting vectors (not retroactive):
-  //   npx wrangler vectorize create-metadata-index gara-radar-vectors --property-name=userId --type=string
-  //   npx wrangler vectorize create-metadata-index gara-radar-vectors --property-name=type --type=string
-  // "vectorize": [
-  //   {
-  //     "binding": "VECTORS",
-  //     "index_name": "gara-radar-vectors"
-  //   }
-  // ],
-
-  // Workflows — durable, step-based fan-out for "do X for each of N items".
-  // Each step.do() is independently retried + survives Worker restarts.
-  // The starter uses one Workflow class for now; add more as needed.
-  // Required for the batch-tasks module (see src/server/modules/batch-tasks/).
-  "workflows": [
-    {
-      "name": "gara-radar-batch-workflow",
-      "binding": "BATCH_WORKFLOW",
-      "class_name": "ProcessBatchWorkflow"
-    },
-    // D1 mirror pattern (issue #90) — keeps an external reference dataset
-    // current in D1. Kick via POST /api/mirror/refresh (admin) or set
-    // MIRROR_CRON='true' for automatic staleness-based refresh.
-    {
-      "name": "gara-radar-mirror-workflow",
-      "binding": "MIRROR_WORKFLOW",
-      "class_name": "MirrorSyncWorkflow"
-    },
-    // Daily D1 → R2 backup beyond Time Travel's 30-day window. Needs
-    // D1_DATABASE_ID + CLOUDFLARE_ACCOUNT_ID vars and the
-    // D1_REST_API_TOKEN secret; enable the cron with BACKUP_CRON='true'.
-    // Full setup + restore runbook: docs/BACKUPS.md.
-    {
-      "name": "gara-radar-backup-workflow",
-      "binding": "BACKUP_WORKFLOW",
-      "class_name": "D1BackupWorkflow"
-    }
-  ],
-
-  // Cron Triggers (scheduled tasks)
-  // Runs every 15 minutes:
-  //  - processes due jobs from scheduled_jobs table (agent reminders)
-  //  - cleans up expired better-auth sessions + verification tokens
-  //  - hourly: 30-day backstop for orphaned session rows
-  // The scheduled() handler is wired up in src/server/index.ts.
-  "triggers": {
-    "crons": ["*/15 * * * *"]
-  },
-
-  // Email Sending
-  // ------------
-  // Wrapped by src/server/modules/email/service.ts. Six providers ship
-  // (one file each in src/server/modules/email/providers/), default
-  // priority (first available wins):
-  //
-  //   1. env.EMAIL              — Cloudflare Email Service (beta, paid plan).
-  //                               Onboard domain in dashboard → Compute & AI
-  //                               → Email Service (SPF + DKIM auto on CF DNS).
-  //                               Uncomment the `send_email` block below.
-  //   2. SMTP2GO_API_KEY        — SMTP2Go HTTP. 1k/month free, paid above.
-  //                               Sender domain must be verified in dashboard.
-  //   3. MAILGUN_API_KEY        — Mailgun HTTP. Pay-as-you-go.
-  //   +  MAILGUN_DOMAIN           Required pair. Set MAILGUN_REGION='eu' for EU.
-  //   4. RESEND_API_KEY         — Resend HTTP. 100/day, 3k/month free.
-  //      (or EMAIL_API_KEY)       EMAIL_API_KEY accepted as legacy default.
-  //   5. env.SEND_EMAIL         — Cloudflare Email Routing (legacy, verified
-  //                               destinations only). Needs `mimetext`.
-  //   6. console                — never fails, logs only. Dev fallback.
-  //
-  // Override priority via the EMAIL_PROVIDER_ORDER env (comma-separated
-  // provider ids), e.g. "smtp2go,email-service,resend".
-  //
-  // Set EMAIL_FAILOVER='true' to cascade through providers when one
-  // throws (default: strict — first available wins, errors surface).
-  //
-  // "send_email": [
-  //   { "name": "EMAIL" }
-  //   // OR restrict the sender for defence-in-depth:
-  //   // { "name": "EMAIL", "allowed_sender_addresses": ["noreply@yourdomain.com"] }
-  // ],
-
-  // Email delivery events (opt-in) — Queues event subscription
-  // -----------------------------------------------------------
-  // Email Sending publishes six lifecycle events per message
-  // (message.delivered / deferred / bounced / failed / rejected /
-  // complained) into a queue you subscribe. The consumer in
-  // src/server/modules/email/delivery-events.ts records them into the
-  // email_events table and maintains the email_suppressions bounce/
-  // complaint list. email-service provider (env.EMAIL) only — the other
-  // providers have their own webhook systems.
-  //
-  // Enable by:
-  //   1. npx wrangler queues create email-events
-  //   2. Create the event subscription — one per sending domain — via
-  //      dashboard (Queues → email-events → Subscriptions) or
-  //      `wrangler queues subscription create email-events --source ... --events ...`.
-  //      https://developers.cloudflare.com/email-service/platform/event-subscriptions/
-  //   3. Uncomment the consumers block below
-  //   4. Wire the queue() export in src/server/index.ts — see the
-  //      delivery-events.ts docstring (covers sharing the export with
-  //      the async-send consumer in queue.ts, dispatching on batch.queue)
-  //   5. Optional: EMAIL_SUPPRESSION_ENFORCE='true' makes sendEmail()
-  //      skip suppressed recipients (default off — data-only)
-  // Full walkthrough: docs/ADDING_EMAIL_DELIVERY_EVENTS.md
-  //
-  // "queues": {
-  //   "consumers": [
-  //     {
-  //       "queue": "email-events",
-  //       "max_batch_size": 25,
-  //       "max_retries": 5,
-  //       "dead_letter_queue": "email-events-dlq"
-  //     }
-  //   ]
-  // },
-
-  // Containers — Cloudflare Sandbox (code-interpreter for the chat agent).
-  // Backs the run_python / run_shell / run_js / generate_document tools
-  // (src/server/modules/chat/tools/code.ts). Requires Workers Paid.
-  //
-  //  - The image is built from ./Dockerfile at deploy time — Docker must be
-  //    RUNNING locally when you `pnpm run deploy` (first deploy pushes the
-  //    image; subsequent deploys reuse the layer cache).
-  //  - Keep the Dockerfile base tag in sync with the @cloudflare/sandbox
-  //    npm version (0.12.3 today) — the SDK checks compat on startup.
-  //  - Billing: containers charge for active CPU + memory while a sandbox
-  //    is awake; sandboxes sleep after ~10 min idle. One sandbox per
-  //    (user, conversation).
-  //  - The `Sandbox` class is re-exported from src/server/index.ts and
-  //    provisioned in migrations tag v11 below.
-  "containers": [
-    {
-      "class_name": "Sandbox",
-      "image": "./Dockerfile",
-      "instance_type": "lite",
-      "max_instances": 5
-    }
-  ],
-
-  // Runtime worker vars (non-secret; secrets go via `wrangler secret put`).
-  // SANDBOX_TRANSPORT=rpc switches the Sandbox DO ↔ container control
-  // plane to the RPC transport — required for `sandbox.tunnels.*` (the
-  // site_serve preview URLs) and the streaming file APIs. "http" (the
-  // default) leaves those methods throwing "requires RPC transport".
-  "vars": { "SANDBOX_TRANSPORT": "rpc" },
-
-  // Worker Loader (beta) — containerless dynamic-worker execution. Backs
-  // function-style skill scripts (`export default run(input, ctx)`) via the
-  // agents/skills runner: no network, no bindings, per-run isolate. Remove
-  // this block if your account can't deploy the beta; the tool degrades
-  // gracefully when the binding is absent.
-  "worker_loaders": [{ "binding": "LOADER" }],
-
-  // Durable Objects — stateful, SQLite-backed classes that live longer than
-  // a single request. One instance per `idFromName(name)`. Used for:
-  //  - Voice agents (VoiceInputExample — streams mic + transcribes)
-  //  - Chat rooms, collaborative docs, live dashboards
-  //  - Any per-entity WebSocket session
-  //
-  // Every DO class listed here MUST be exported from the Worker entry
-  // (see `export { VoiceInputExample }` in src/server/index.ts) AND listed
-  // in `migrations.new_sqlite_classes` below so storage is provisioned.
-  //
-  // Routed via `routeAgentRequest` at /agents/{agent-name-kebab-case}/{name}.
-  // See CLAUDE.md → "Pattern 10: Durable Object Agent (voice / streaming WS)".
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "VoiceInputExample",
-        "class_name": "VoiceInputExample"
-      },
-      {
-        "name": "VideoInputExample",
-        "class_name": "VideoInputExample"
-      },
-      {
-        // ReminderAgent — worked example of the agents-SDK schedule pattern.
-        // Per-user scheduled work using Agent.schedule() / .retry().
-        // See src/server/modules/scheduled-agents/.
-        "name": "ReminderAgent",
-        "class_name": "ReminderAgent"
-      },
-      {
-        // AssistantAgent — worked example of AutonomousAgent.
-        // Stateful AI assistant per (user, slug) partition. Persona +
-        // memory blocks + tool catalog + schedule. See
-        // src/server/lib/agents/autonomous-agent.ts for the base class
-        // and src/server/modules/autonomous-agents/ for the worked example.
-        "name": "AssistantAgent",
-        "class_name": "AssistantAgent"
-      },
-      {
-        // ResearcherAgent + WriterAgent — multi-agent handoff worked
-        // example. Researcher uses web_search, then delegates prose
-        // composition to Writer via an inline `delegate_to_writer`
-        // tool (agents-as-tools pattern).
-        "name": "ResearcherAgent",
-        "class_name": "ResearcherAgent"
-      },
-      {
-        "name": "WriterAgent",
-        "class_name": "WriterAgent"
-      },
-      {
-        // SweeperAgent — cron-driven entity processing worked example.
-        // Scans entities table for stale items + queues followup
-        // approvals. See src/server/modules/autonomous-agents/sweeper-agent.ts.
-        "name": "SweeperAgent",
-        "class_name": "SweeperAgent"
-      },
-      {
-        // ScratchpadMcpAgent — agent-as-MCP-server worked example.
-        // Per-user persistent scratchpad accessible via Streamable-HTTP
-        // MCP at /mcp/scratchpad/<userId>. External MCP clients (other
-        // Claude Code sessions, Anthropic Workbench) connect and call
-        // get/set/append/clear tools.
-        // **Auth**: this binding is unauthenticated for the demo. Add
-        // OAuth via AgentMcpOAuthProvider before exposing real data.
-        "name": "ScratchpadMcpAgent",
-        "class_name": "ScratchpadMcpAgent"
-      },
-      {
-        // SpaceAgent — multi-user multi-agent room (Spaces feature).
-        // One DO per Space (idFromName(spaceId)). Holds presence +
-        // WebSocket fan-out; all message persistence lives in D1.
-        // See src/server/modules/spaces/space-agent.ts.
-        "name": "SpaceAgent",
-        "class_name": "SpaceAgent"
-      },
-      {
-        // AdminAgent — Claude-Code-style platform management (gh #49).
-        // Per-user. Lives in #admin Space. Calls admin tools (routines,
-        // awareness) all gated by `requestApproval` for write paths.
-        // See src/server/modules/autonomous-agents/admin-agent.ts.
-        "name": "AdminAgent",
-        "class_name": "AdminAgent"
-      },
-      {
-        // ChatAgent — SDK-aligned chat DO via @cloudflare/ai-chat's
-        // AIChatAgent. One DO per (user, conversation) pair, named
-        // `user-{userId}-conv-{conversationId}`. Routed via
-        // routeAgentRequest at /agents/chat-agent/{instance-name}.
-        // See src/server/modules/chat/chat-agent.ts.
-        "name": "ChatAgent",
-        "class_name": "ChatAgent"
-      },
-      {
-        // Sandbox — Cloudflare Sandbox SDK container DO (see `containers`
-        // block above). Class ships with @cloudflare/sandbox; re-exported
-        // from src/server/index.ts. Tools self-omit when this binding is
-        // absent, so removing this block (plus `containers`) is the way
-        // to opt out on a free-plan fork.
-        "name": "SANDBOX",
-        "class_name": "Sandbox"
-      },
-      {
-        // ThinkPilotAgent — pilot of the @cloudflare/think harness
-        // (actions ledger, scheduled-task DSL, shared skills registry).
-        // One DO per user, named `{userId}:main`. Routed via
-        // routeAgentRequest at /agents/think-pilot-agent/{instance-name}.
-        // See src/server/modules/think-pilot/think-pilot-agent.ts.
-        "name": "ThinkPilotAgent",
-        "class_name": "ThinkPilotAgent"
-      }
-    ]
-  },
-
-  // Migrations — required to enable SQLite storage on DO classes. Tag is
-  // monotonic ("v1", "v2", ...) — NEVER edit an existing tag after deploy,
-  // add a new one. Include every class in `new_sqlite_classes` the first
-  // time it ships. Subsequent renames/deletes use `renamed_classes` /
-  // `deleted_classes` on a new tag.
-  // Declarative DO class registration — replaces the legacy migrations
-  // array (ONE-WAY: once deployed with exports, subsequent deploys cannot
-  // return to migrations). Existing namespaces + data carry over with no
-  // data migration. All classes here were provisioned via
-  // new_sqlite_classes, hence storage: "sqlite" throughout.
-  // Adding a DO now = export the class from src/server/index.ts + one line
-  // here (+ a durable_objects.bindings entry to reach it from env).
-  "exports": {
-    "VoiceInputExample": { "type": "durable-object", "storage": "sqlite" },
-    "VideoInputExample": { "type": "durable-object", "storage": "sqlite" },
-    "ReminderAgent": { "type": "durable-object", "storage": "sqlite" },
-    "AssistantAgent": { "type": "durable-object", "storage": "sqlite" },
-    "ResearcherAgent": { "type": "durable-object", "storage": "sqlite" },
-    "WriterAgent": { "type": "durable-object", "storage": "sqlite" },
-    "ScratchpadMcpAgent": { "type": "durable-object", "storage": "sqlite" },
-    "SweeperAgent": { "type": "durable-object", "storage": "sqlite" },
-    "SpaceAgent": { "type": "durable-object", "storage": "sqlite" },
-    "AdminAgent": { "type": "durable-object", "storage": "sqlite" },
-    "ChatAgent": { "type": "durable-object", "storage": "sqlite" },
-    "Sandbox": { "type": "durable-object", "storage": "sqlite" },
-    "ThinkPilotAgent": { "type": "durable-object", "storage": "sqlite" }
-  },
-
-  // Observability
   "observability": {
     "enabled": true,
     "logs": {
@@ -440,7 +43,4 @@
       "head_sampling_rate": 1
     }
   }
-
-  // Build configuration is handled by Vite (vite.config.ts)
-  // Do not set "minify" here - use Vite's build.minify option instead
 }

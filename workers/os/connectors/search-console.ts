@@ -1,4 +1,5 @@
 import type { Signal } from "../types";
+import { classifyDemandIntent } from "../demand-intent";
 import type { ConnectorRunContext, SignalConnector } from "./types";
 
 export interface SearchConsoleQueryRow {
@@ -56,6 +57,7 @@ export class SearchConsoleDemandConnector
           impressions: row.impressions,
           ctr: row.ctr,
           position: row.position,
+          intent: classifyDemandIntent(row.query),
           startDate: snapshot.startDate,
           endDate: snapshot.endDate,
         },

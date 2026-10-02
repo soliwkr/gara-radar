@@ -35,7 +35,7 @@ export const appConfig = {
    * Application name displayed in sidebar, headers, and landing page
    * @env VITE_APP_NAME
    */
-  name: import.meta.env['VITE_APP_NAME'] || 'Vite Flare Starter',
+  name: import.meta.env['VITE_APP_NAME'] || 'Gara Radar',
 
   /**
    * Short application identifier used for:
@@ -46,7 +46,7 @@ export const appConfig = {
    * Should be lowercase, no spaces, URL-safe (e.g., "myapp", "clientname")
    * @env VITE_APP_ID
    */
-  id: import.meta.env['VITE_APP_ID'] || 'vite-flare-starter',
+  id: import.meta.env['VITE_APP_ID'] || 'gara-radar',
 
   /**
    * API token prefix for generated tokens
@@ -55,14 +55,14 @@ export const appConfig = {
    * This appears in Authorization headers and should not reveal framework identity.
    * @env VITE_TOKEN_PREFIX
    */
-  tokenPrefix: import.meta.env['VITE_TOKEN_PREFIX'] || 'vfs_',
+  tokenPrefix: import.meta.env['VITE_TOKEN_PREFIX'] || 'grr_',
 
   /**
    * GitHub repository URL for "View Source" links
    * Set to empty string to hide GitHub links on landing page
    * @env VITE_GITHUB_URL
    */
-  githubUrl: import.meta.env['VITE_GITHUB_URL'] || 'https://github.com/jezweb/vite-flare-starter',
+  githubUrl: import.meta.env['VITE_GITHUB_URL'] || 'https://github.com/soliwkr/gara-radar',
 
   /**
    * Footer text for public pages

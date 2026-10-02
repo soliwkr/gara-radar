@@ -120,3 +120,6 @@ export { grBetaLeads } from '@/server/modules/gara-radar-public/schema'
 
 // Gara Radar billing
 export { grSubscriptions, grBillingEvents } from '@/server/modules/gara-radar-billing/schema'
+
+// Gara Radar supply and first-payer pipeline
+export { grTenders, grProspects, grProspectMatches } from '@/server/modules/gara-radar-supply/schema'

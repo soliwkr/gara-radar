@@ -47,6 +47,9 @@ function PublicFooter() {
             Gara Radar non è ANAC, non è una stazione appaltante e non sostituisce la documentazione ufficiale.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
+            Internet Marketing Secrets di Christian Fioravanti · P.IVA 02996460594 · Formia (LT), Italia
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
             Contatto privacy: <a className="underline hover:text-foreground" href="mailto:privacy@gararadar.it">privacy@gararadar.it</a>
           </p>
         </div>

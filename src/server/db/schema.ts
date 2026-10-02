@@ -117,3 +117,6 @@ export {
 
 // Gara Radar public beta
 export { grBetaLeads } from '@/server/modules/gara-radar-public/schema'
+
+// Gara Radar billing
+export { grSubscriptions, grBillingEvents } from '@/server/modules/gara-radar-billing/schema'

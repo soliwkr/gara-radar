@@ -219,6 +219,28 @@ footer p{margin:0;font-size:12px}
   footer{flex-direction:column;align-items:flex-start}
 }
 
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(10,14,8,.62);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:18px;z-index:99}
+.modal-backdrop.open{display:flex}
+.gara-modal{width:min(760px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:28px;border:1px solid var(--line);box-shadow:0 28px 90px rgba(0,0,0,.25);padding:26px}
+.gara-modal-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.gara-modal h3{font-size:34px;line-height:1.03;letter-spacing:-.045em;margin:8px 0 8px}
+.gara-modal .modal-entity{color:var(--muted);margin-bottom:20px}
+.modal-close{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:#f7f8f4;font-size:22px;cursor:pointer;flex:0 0 auto}
+.modal-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+.modal-metrics div{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fafbf7}
+.modal-metrics span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;font-weight:800}
+.modal-metrics strong{display:block;margin-top:3px;font-size:17px}
+.modal-block{border-top:1px solid var(--line);padding-top:18px;margin-top:18px}
+.modal-block h4{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.08em}
+.modal-block p{margin:0;color:#545a50}
+.modal-note{margin-top:20px;border-radius:14px;padding:12px 14px;background:#fff8df;border:1px solid #f0dda1;font-size:12px;color:#665a2d}
+.modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.modal-actions button{border:0;border-radius:999px;padding:12px 17px;font-weight:800;cursor:pointer}
+.modal-actions .primary-action{background:var(--dark);color:#fff}
+.modal-actions .secondary-action{background:#f0f2ec;color:#20251d}
+@media(max-width:620px){.modal-metrics{grid-template-columns:1fr}.gara-modal{padding:20px}.gara-modal h3{font-size:28px}}
+
 </style>
 </head>
 <body>
@@ -357,5 +379,89 @@ footer p{margin:0;font-size:12px}
     <div class="brand"><span class="mark">◎</span><span>Gara Radar</span></div>
     <p>Preview MVP · Dati dimostrativi · © 2026 Gara Radar</p>
   </footer>
+
+<div class="modal-backdrop" id="gara-modal" aria-hidden="true">
+  <section class="gara-modal" role="dialog" aria-modal="true" aria-labelledby="gara-modal-title">
+    <div class="gara-modal-head">
+      <div>
+        <span class="kicker">SCHEDA GARA</span>
+        <h3 id="gara-modal-title">Dettaglio opportunità</h3>
+        <p class="modal-entity" id="gara-modal-entity"></p>
+      </div>
+      <button class="modal-close" id="gara-modal-close" aria-label="Chiudi">×</button>
+    </div>
+    <div class="modal-metrics">
+      <div><span>Importo</span><strong id="gara-modal-amount">—</strong></div>
+      <div><span>Area</span><strong id="gara-modal-area">—</strong></div>
+      <div><span>Categoria</span><strong id="gara-modal-category">—</strong></div>
+    </div>
+    <div class="modal-block">
+      <h4>Perché è nel tuo radar</h4>
+      <p id="gara-modal-why">—</p>
+    </div>
+    <div class="modal-block">
+      <h4>Come leggerla</h4>
+      <p>Questa scheda porta in alto le informazioni utili alla prima decisione: valore, scadenza, territorio e compatibilità. Requisiti e documentazione vanno sempre verificati sulla fonte ufficiale.</p>
+    </div>
+    <div class="modal-note">Preview MVP: le gare mostrate oggi sono dimostrative. Non stiamo ancora mostrando una gara BDNCP reale come se lo fosse.</div>
+    <div class="modal-actions">
+      <button class="primary-action" id="gara-modal-save">Salva opportunità</button>
+      <button class="secondary-action" id="gara-modal-dismiss">Chiudi</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const modal = document.getElementById("gara-modal");
+  if (!modal) return;
+  const q = (id) => document.getElementById(id);
+  let currentCard = null;
+
+  function valueFrom(card, label) {
+    const items = [...card.querySelectorAll(".metric-grid > div")];
+    const hit = items.find(x => (x.querySelector("span")?.textContent || "").trim().toLowerCase() === label.toLowerCase());
+    return hit?.querySelector("strong")?.textContent?.trim() || "—";
+  }
+
+  function openCard(card) {
+    currentCard = card;
+    q("gara-modal-title").textContent = card.querySelector("h3")?.textContent?.trim() || "Dettaglio opportunità";
+    q("gara-modal-entity").textContent = card.querySelector(".entity")?.textContent?.trim() || "";
+    q("gara-modal-amount").textContent = valueFrom(card, "Importo");
+    q("gara-modal-area").textContent = valueFrom(card, "Area");
+    q("gara-modal-category").textContent = valueFrom(card, "Categoria");
+    q("gara-modal-why").textContent = (card.querySelector(".why")?.textContent || "").replace(/^Perché te la mostra:\s*/i,"").trim() || "Compatibilità da verificare.";
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden","false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal() {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden","true");
+    document.body.style.overflow = "";
+    currentCard = null;
+  }
+
+  document.querySelectorAll(".tender-card").forEach(card => {
+    const openBtn = card.querySelector(".card-actions button:first-child");
+    if (openBtn) openBtn.addEventListener("click", () => openCard(card));
+  });
+
+  q("gara-modal-close")?.addEventListener("click", closeModal);
+  q("gara-modal-dismiss")?.addEventListener("click", closeModal);
+  modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("open")) closeModal(); });
+
+  q("gara-modal-save")?.addEventListener("click", () => {
+    if (!currentCard) return;
+    const saveBtn = currentCard.querySelector(".card-actions .save");
+    if (saveBtn) saveBtn.click();
+    q("gara-modal-save").textContent = "Salvata ✓";
+    setTimeout(() => q("gara-modal-save").textContent = "Salva opportunità", 1200);
+  });
+})();
+</script>
 </body>
 </html>

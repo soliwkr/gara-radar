@@ -1,0 +1,33 @@
+name: Migration CI
+
+on:
+  push:
+    branches: ["migration-vite-flare"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Validate D1 migrations locally
+        run: |
+          pnpm exec wrangler d1 migrations apply gara-radar-db --local
+          pnpm exec wrangler d1 execute gara-radar-db --local --command "SELECT count(*) AS sources FROM gr_sources; SELECT count(*) AS segments FROM gr_segments;"

@@ -1,377 +1,191 @@
-/**
- * LandingPage — unauthenticated homepage.
- *
- * ⚠️ This route is wrapped in <PublicLayout /> (App.tsx ~line 109) which
- * provides the header (logo + Sign In / Sign Up nav) and footer. Do NOT
- * add a `<header>` element here when forking — you'll get two stacked
- * headers. Customise hero / features / CTA sections only. Same for footer.
- *
- * If you need to change the public chrome itself (header / footer
- * markup), edit `src/client/layouts/PublicLayout.tsx`.
- *
- * See gh #53.
- */
-import { useState } from 'react'
 import { Link } from 'react-router'
-import { Button } from '@/components/ui/button'
+import {
+  ArrowRight,
+  Bell,
+  CheckCircle,
+  Clock,
+  Crosshair,
+  FileSearch,
+  Funnel,
+  MapPin,
+  ShieldCheck,
+  Sparkle,
+  Target,
+} from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { useSession } from '@/client/lib/auth'
-import { Shield, Lightning, ArrowRight, Palette, Database, Users, Key, Robot, Flag, Pulse, Bell, ShieldCheck, Chat, Kanban, Sparkle, PushPin, Hash, CheckSquare, Plug, Microphone, Camera, MagnifyingGlass, FileText, Eye, FlowArrow, GitBranch, Lock } from '@phosphor-icons/react'
-import { appConfig } from '@/shared/config/app'
 
-/**
- * ⚠️  SECURITY: Update these for production deployments
- *
- * Set VITE_GITHUB_URL="" (empty) to hide GitHub links
- * Set VITE_APP_NAME for custom branding
- *
- * See src/shared/config/app.ts for all branding options
- */
-
-// Phosphor's GithubLogo exists, but keep the inline SVG for exact brand mark
-function GithubIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-    </svg>
-  )
-}
-
-/**
- * The four primary surfaces — these are the things a user spends
- * their day inside. They get top billing on the landing page.
- */
-const primarySurfaces = [
+const opportunities = [
   {
-    icon: Hash,
-    title: 'Spaces',
-    badge: 'New',
-    description:
-      'Multi-user, multi-agent rooms. @-mention an agent to ask for help; threads, reactions, pinned messages, quote-in-reply, presence — all the Slack/Google-Chat-style primitives.',
-    bullets: [
-      'Per-agent reply modes: mention · proactive · ambient · always · off',
-      '6 starter templates + checkbox agent picker',
-      'Threads, reactions, pin, star, forward, search',
-      'Cross-space FTS5 search at /api/search/messages',
-      'WebSocket presence + live broadcast via Cloudflare Agents SDK',
-    ],
+    title: 'Manutenzione e adeguamento impianti elettrici — sedi Consiglio di Stato',
+    buyer: 'Consiglio di Stato',
+    area: 'Roma',
+    amount: '€ 627.000',
+    deadline: '3 ottobre 2026 · 13:00',
+    category: 'OS30',
+    source:
+      'https://cds-appalti.maggiolicloud.it/PortaleAppalti/it/homepage.wp?actionPath=%2FExtStr2%2Fdo%2FFrontEnd%2FBandi%2Fview.action&codice=G00048&currentFrame=7',
+    note: 'Impianti elettrici · Lazio · procedura in corso',
   },
   {
-    icon: Kanban,
-    title: 'Projects',
-    description:
-      'Long-lived workspaces grouping conversations, files, instructions, and memory. Shareable with editors and viewers — a private project becomes a team room with one invite.',
-    bullets: [
-      'Project-level system prompt injected on every chat',
-      'Memory blocks (project / user / org scope) with privacy zones',
-      'Multi-user share — owner / editor / viewer roles',
-      '3-way memory trust (ask / auto / never)',
-      'Auto-tagging + universal search across every conversation',
-    ],
-  },
-  {
-    icon: Chat,
-    title: 'AI Chat',
-    description:
-      'AI SDK v6 ToolLoopAgent — 95+ tools across Gmail, Calendar, Drive, Sheets, browser automation, web search, places, code execution, audio, and the rest.',
-    bullets: [
-      '16 models across 8 providers (Workers AI free + OpenRouter)',
-      'Streaming, vision, structured output, citations footer',
-      'Per-tool telemetry in `ai_tool_calls` D1 table',
-      'Privileged-tool gating + needsApproval flow',
-      'Subagent delegation + skills system (Claude Agent Skills)',
-    ],
-  },
-  {
-    icon: Robot,
-    title: 'Autonomous Agents',
-    description:
-      'Stateful AI agents living in Durable Objects. Persona + memory blocks + tool catalog + scheduled triggers + webhook ingestion + full observability.',
-    bullets: [
-      'AssistantAgent / ResearcherAgent / WriterAgent worked examples',
-      'Multi-agent handoff (agents-as-tools pattern)',
-      'Cron-driven SweeperAgent for entity processing',
-      'Approval queue with run audit (cost / tokens / steps)',
-      'Daily budget cap + BYOK key resolution per user',
-    ],
+    title: 'Multiservizio tecnologico per gli impianti delle Aziende Sanitarie del Lazio',
+    buyer: 'Regione Lazio',
+    area: 'Lazio · 10 lotti',
+    amount: '€ 2,01 mld',
+    deadline: '29 ottobre 2026 · 16:00',
+    category: 'CPV 50711000-2',
+    source:
+      'https://centraleacquisti.regione.lazio.it/bandi-e-strumenti-di-acquisto/bandi-di-gara-in-scadenza/dettaglio-bando?id_doc=11979619&tipo_doc=BANDO_GARA_PORTALE',
+    note: 'Grande procedura: rilevante soprattutto per RTI/subappalto',
   },
 ]
 
-/**
- * The everything-else feature grid. Compact cards that map to the
- * actual modules in the repo, so a fork browsing the landing knows
- * exactly what they get.
- */
-const features = [
+const steps = [
   {
-    icon: Lightning,
-    title: 'Skills System',
-    description:
-      'Claude Agent Skills compatible. 14 bundled skills + R2 + GitHub sources, AI-sparkle rewrite, diff approval.',
+    n: '01',
+    title: 'Imposti il profilo',
+    body: 'Attività, territori, categorie e fascia economica. Parti con poche regole chiare, non con cinquanta filtri.',
+    icon: Target,
   },
   {
-    icon: Plug,
-    title: 'MCP Connectors',
-    description:
-      'Per-user OAuth to external MCP servers. PKCE + DCR, AES-GCM tokens, per-tool always/ask/never.',
+    n: '02',
+    title: 'Il radar elimina rumore',
+    body: 'Le procedure vengono organizzate e confrontate con il tuo profilo. Quello che non è pertinente scende di priorità.',
+    icon: Funnel,
   },
   {
-    icon: CheckSquare,
-    title: 'Approvals Queue',
-    description:
-      'Human-in-the-loop for agent actions. Memory updates, sends, posts — review before execute.',
+    n: '03',
+    title: 'Capisci subito cosa aprire',
+    body: 'Importo, scadenza, area, categoria e motivo della rilevanza sono davanti. La fonte ufficiale resta sempre a un click.',
+    icon: FileSearch,
   },
   {
-    icon: Pulse,
-    title: 'Agent Observability',
-    description:
-      '`agent_runs` audit table — cost, tokens, duration, steps per agent invocation. Stuck-run detection.',
-  },
-  {
-    icon: MagnifyingGlass,
-    title: 'FTS5 Search',
-    description:
-      'Universal search across conversations, spaces, messages. Cross-space + in-space scoped queries.',
-  },
-  {
-    icon: PushPin,
-    title: 'Pin / Star / Forward',
-    description: "Per-space pinned shelf, personal stars, forward to any space you're a member of.",
-  },
-  {
-    icon: Microphone,
-    title: 'Voice Agent',
-    description:
-      'Cloudflare Voice SDK — withVoiceInput mixin streams audio + Workers AI Deepgram Nova 3 transcription.',
-  },
-  {
-    icon: Camera,
-    title: 'Video Agent',
-    description:
-      'getUserMedia → canvas frame sample → vision model. Companion to the voice agent — no SDK, just primitives.',
-  },
-  {
-    icon: FileText,
-    title: 'Files + Image + Video',
-    description:
-      'R2 with metadata, Cloudflare Images for resize/crop/face/bg-remove, Media Transformations for video.',
-  },
-  {
-    icon: Database,
-    title: 'Conversation Persistence',
-    description:
-      'D1-backed messages + sidebar UI + summary + tags + auto-resume. ChatStorage interface (DO-ready).',
-  },
-  {
+    n: '04',
+    title: 'Ricevi gli aggiornamenti',
+    body: 'Salvi ciò che interessa e ricevi alert mirati. Meno tempo a cercare, più tempo a decidere.',
     icon: Bell,
-    title: 'Notifications',
-    description: 'In-app bell, unread counts, URL-persisted filter, deep-links to source pages.',
   },
-  {
-    icon: Key,
-    title: 'API Tokens',
-    description:
-      'SHA-256 hashed, scope-based access. Useful for ElevenLabs voice agents, MCP clients, external services.',
-  },
-  {
-    icon: Users,
-    title: 'Better-Auth + Orgs',
-    description:
-      'Google OAuth, optional email/password, role gating, org plugin, deep-link preserved through sign-in.',
-  },
-  {
-    icon: Flag,
-    title: 'Feature Flags',
-    description:
-      'DB-backed toggles, public + admin endpoints. Hide modules from the sidebar without deleting code.',
-  },
-  {
-    icon: GitBranch,
-    title: 'Pattern Library',
-    description:
-      "Every module is a worked example. Don't delete what you don't need — disable via flags. Reference for AI agents reading your codebase.",
-  },
-  {
-    icon: Lock,
-    title: 'BYOK + Trust',
-    description:
-      'Per-user model keys (Anthropic, OpenAI, Google, OpenRouter). Service credentials encrypted at rest.',
-  },
-  {
-    icon: FlowArrow,
-    title: 'Cron + Background',
-    description:
-      'Memory sweep, history-disabled cleanup, due-job processor. Existing 15-min cron has 5 sweep tasks already.',
-  },
-  {
-    icon: Eye,
-    title: 'Comments + Watchers + Tags',
-    description:
-      'Polymorphic business modules. Comments on any entity, watchers for changes, tags for organisation.',
-  },
-  {
-    icon: Palette,
-    title: '59 UI Components',
-    description:
-      'shadcn/ui complete + Tailwind v4, 8 themes, dark/light/system, command palette, keyboard shortcuts.',
-  },
+]
+
+const principles = [
   {
     icon: ShieldCheck,
-    title: 'Sentry + Activity Log',
-    description:
-      'Server-side error reporting hooks + audit trail with pagination, filters, entity history.',
+    title: 'La fonte resta visibile',
+    body: 'Gara Radar non sostituisce il disciplinare. Ogni opportunità verificata rimanda alla pubblicazione ufficiale.',
   },
   {
-    icon: Sparkle,
-    title: 'Card-format Bot Messages',
-    description:
-      'Agents emit metadata.cardFormat for daily digests / reports — UI renders structured cards instead of text.',
+    icon: Crosshair,
+    title: 'Rilevanza, non volume',
+    body: 'Il valore non è mostrarti più bandi. È ridurre quelli che non meritano neppure di essere aperti.',
   },
   {
-    icon: Shield,
-    title: 'Privileged-tool Gating',
-    description:
-      'Destructive tools (gmail_send, calendar_delete, sheets_write) need user-intent keyword unlock.',
-  },
-]
-
-/**
- * Spaces is the headline new thing — it gets a dedicated section
- * because "multi-user multi-agent chat" doesn't compress well into a
- * card.
- */
-const spacesScenes: Array<{ icon: typeof Hash; title: string; body: string }> = [
-  {
-    icon: Robot,
-    title: 'Agents reply when called',
-    body: '@-mention @research and they answer. Stay quiet otherwise. Per-agent reply modes (mention / proactive / ambient / always / off) so each room sets its own vibe.',
-  },
-  {
-    icon: Chat,
-    title: 'Threads keep the timeline glanceable',
-    body: 'Long agent replies auto-thread. Replies inside a thread stay there. The thread pane has a per-thread bell so you can mute noisy ones.',
-  },
-  {
-    icon: Sparkle,
-    title: 'Reactions are first-class',
-    body: "👍 ✅ ❤️ quick-bar plus the full emoji-mart picker. Bots react with the same emojis humans do. Classifier-driven `ambient` agents react silently when there's signal.",
-  },
-  {
-    icon: PushPin,
-    title: 'Pin · Star · Quote · Forward',
-    body: "Pin to space (collective), star (personal bookmark), quote-in-reply with a chip preview, forward a message to any other space you're in.",
+    icon: Clock,
+    title: 'Scadenze davanti',
+    body: 'Le finestre utili vengono messe in evidenza perché un bando trovato tardi vale poco.',
   },
 ]
 
 export function LandingPage() {
-  const { data: session } = useSession()
-  const isAuthed = !!session?.user
-  const primaryCtaHref = isAuthed ? '/dashboard' : '/sign-up'
-  const primaryCtaLabel = isAuthed ? 'Open Dashboard' : 'Get Started'
-  // Lightbox: which screenshot is open. null = closed. Stores the
-  // shot's data so the dialog can render title + body + image without
-  // a separate state hop.
-  const [zoom, setZoom] = useState<{ src: string; title: string; body: string } | null>(null)
-
   return (
-    <div className="flex flex-col">
-      {/* Hero Section */}
+    <div className="bg-background text-foreground">
       <section className="relative overflow-hidden border-b border-border">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-background" />
-
-        <div className="container relative mx-auto max-w-6xl px-4 py-12 md:py-16">
-          <div className="flex flex-col items-center text-center">
-            <Badge variant="secondary" className="mb-4">
-              AI-native starter for Cloudflare Workers
+        <div className="container relative mx-auto max-w-6xl px-4 py-20 md:py-28">
+          <div className="max-w-4xl">
+            <Badge variant="secondary" className="mb-6">
+              Beta operativa · Impianti e lavori tecnici · Lazio
             </Badge>
-
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl max-w-4xl">
-              Multi-user. Multi-agent.{' '}
-              <span className="bg-gradient-to-r from-primary to-emerald-500 bg-clip-text text-transparent">
-                Built at the edge.
-              </span>
+            <h1 className="max-w-4xl text-5xl font-semibold tracking-[-0.055em] sm:text-6xl md:text-7xl">
+              Meno bandi da leggere.
+              <span className="block text-muted-foreground">Più gare da valutare.</span>
             </h1>
-
-            <p className="mt-6 text-lg text-muted-foreground max-w-2xl md:text-xl">
-              Spaces, Projects, AI chat with 95+ tools, autonomous agents, MCP, voice, video,
-              observability. Every module is a worked example you can fork, rebrand, and ship.
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground md:text-xl">
+              Gara Radar organizza le procedure pubbliche, le filtra sul profilo della tua impresa
+              e ti mostra subito importo, scadenza, territorio e motivo della rilevanza.
             </p>
-
-            <div className="mt-10 flex flex-col sm:flex-row gap-4">
-              <Button size="lg" render={<Link to={primaryCtaHref} />}>
-                {primaryCtaLabel}
-                <ArrowRight className="ml-2 h-4 w-4" />
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Button size="lg" render={<Link to="/beta" />}>
+                Richiedi accesso
+                <ArrowRight className="ml-2 size-4" />
               </Button>
-              {appConfig.githubUrl && (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  render={<a href={appConfig.githubUrl} target="_blank" rel="noopener noreferrer" />}
-                >
-                  <GithubIcon className="mr-2 h-4 w-4" />
-                  View on GitHub
-                </Button>
-              )}
+              <Button size="lg" variant="outline" render={<a href="#radar" />}>
+                Guarda il radar
+              </Button>
             </div>
-
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <Stat value="95+" label="agent tools" />
-              <Stat value="16" label="AI models" />
-              <Stat value="30+" label="modules" />
-              <Stat value="4" label="agent kinds" />
+            <div className="mt-8 flex flex-wrap gap-x-7 gap-y-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-2">
+                <CheckCircle className="size-4 text-primary" /> Fonti verificabili
+              </span>
+              <span className="flex items-center gap-2">
+                <CheckCircle className="size-4 text-primary" /> Nessun addebito in beta
+              </span>
+              <span className="flex items-center gap-2">
+                <CheckCircle className="size-4 text-primary" /> Requisiti sempre da verificare
+              </span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Primary surfaces */}
-      <section className="py-12 md:py-14">
+      <section id="radar" className="border-b border-border py-16 md:py-20">
         <div className="container mx-auto max-w-6xl px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Four primary surfaces</h2>
-            <p className="mt-3 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Where users spend their time. Each one is a complete reference implementation with
-              patterns you can copy.
-            </p>
+          <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div className="max-w-2xl">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                Radar pubblico
+              </div>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+                Guarda prima i dati che contano.
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                Queste opportunità spiegano il formato del prodotto. Le procedure marcate come
+                verificate rimandano alla fonte pubblica utilizzata.
+              </p>
+            </div>
+            <Button variant="outline" render={<Link to="/come-funziona" />}>
+              Come selezioniamo
+              <ArrowRight className="ml-2 size-4" />
+            </Button>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {primarySurfaces.map((surface) => (
-              <Card
-                key={surface.title}
-                className="border-primary/20 bg-gradient-to-br from-primary/[0.03] to-background"
-              >
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {opportunities.map((opportunity) => (
+              <Card key={opportunity.title} className="overflow-hidden">
                 <CardContent className="p-6">
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <surface.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold">{surface.title}</h3>
-                        {surface.badge && (
-                          <Badge variant="default" className="text-[10px] uppercase tracking-wider">
-                            {surface.badge}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Badge>Verificata</Badge>
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Scade {opportunity.deadline}
+                    </span>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-3">{surface.description}</p>
-                  <ul className="space-y-1 text-xs text-muted-foreground">
-                    {surface.bullets.map((b) => (
-                      <li key={b} className="flex items-start gap-1.5">
-                        <span className="mt-1 inline-block h-1 w-1 rounded-full bg-primary/50" />
-                        <span>{b}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <h3 className="mt-5 text-2xl font-semibold tracking-tight">
+                    {opportunity.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {opportunity.buyer} · {opportunity.area}
+                  </p>
+
+                  <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Metric label="Importo" value={opportunity.amount} />
+                    <Metric label="Area" value={opportunity.area} />
+                    <Metric label="Categoria" value={opportunity.category} />
+                  </div>
+
+                  <div className="mt-5 rounded-xl border border-border bg-muted/40 p-4 text-sm">
+                    <span className="font-medium">Perché è nel radar: </span>
+                    <span className="text-muted-foreground">{opportunity.note}</span>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <Button render={<a href={opportunity.source} target="_blank" rel="noreferrer" />}>
+                      Apri fonte ufficiale
+                      <ArrowRight className="ml-2 size-4" />
+                    </Button>
+                    <Button variant="outline" render={<Link to="/beta" />}>
+                      Ricevi opportunità simili
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -379,362 +193,147 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Spaces deep-dive */}
-      <section className="py-12 bg-muted/30 border-y border-border">
+      <section className="border-b border-border bg-muted/25 py-16 md:py-20">
         <div className="container mx-auto max-w-6xl px-4">
-          <div className="text-center mb-10">
-            <Badge variant="secondary" className="mb-3">
-              Headline feature
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-3">
-              Spaces — Slack-style rooms with AI as a first-class member.
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              The pattern that big-LLM products haven&apos;t shipped yet: a multi-user chat where AI
-              agents are members alongside humans. @-mention them and they answer. Set their reply
-              mode and they jump in proactively, react ambiently, or stay quiet.
-            </p>
-          </div>
-
-          {/* Real screenshot of a live Space — click to zoom. */}
-          <button
-            type="button"
-            onClick={() =>
-              setZoom({
-                src: '/spaces-hero.png',
-                title: 'Spaces — live three-pane layout',
-                body: 'Members rail · timeline · thread pane. @-mention pills, hover action bar with quick reactions + emoji picker + thread + more menu, "1 reply" indicator. Real authed UI, not a mockup.',
-              })
-            }
-            className="mb-10 block w-full cursor-zoom-in overflow-hidden rounded-xl border border-border shadow-2xl transition-transform hover:scale-[1.005]"
-            aria-label="Zoom Spaces screenshot"
-          >
-            <img
-              src="/spaces-hero.png"
-              alt="Marketing-pod Space — three-pane layout with @-mentioned message and 1 reply thread"
-              className="w-full"
-            />
-          </button>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-            {spacesScenes.map((s) => (
-              <Card key={s.title} className="border-border/60">
-                <CardContent className="p-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-2">
-                    <s.icon className="h-4 w-4" />
-                  </div>
-                  <h3 className="text-sm font-semibold mb-1">{s.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-2">
-            <Badge variant="outline">@-autocomplete</Badge>
-            <Badge variant="outline">Threads · Reactions</Badge>
-            <Badge variant="outline">Templates</Badge>
-            <Badge variant="outline">Cross-space search</Badge>
-            <Badge variant="outline">MCP attachments</Badge>
-            <Badge variant="outline">Slash sub-commands</Badge>
-            <Badge variant="outline">Per-thread mute</Badge>
-            <Badge variant="outline">Block / Pin / Star / Forward</Badge>
-            <Badge variant="outline">Proactive · Ambient modes</Badge>
-            <Badge variant="outline">Card-format bot messages</Badge>
-          </div>
-
-          <div className="mt-6 text-center text-xs text-muted-foreground">
-            Built on Cloudflare Agents SDK + Durable Objects for presence and live broadcast. D1 is
-            canonical storage. WebSocket is just for live fan-out.
-          </div>
-        </div>
-      </section>
-
-      {/* Dashboard tour — real screenshots */}
-      <section className="py-12">
-        <div className="container mx-auto max-w-6xl px-4">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              A tour of the dashboard
-            </h2>
-            <p className="mt-3 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Real screenshots — not mockups — of every primary surface inside the app.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[
-              {
-                src: '/tour/01-chat.png',
-                title: 'AI Chat',
-                body: '"Good evening, Jeremy" greeting, preset chips, 16-model picker, persistent history.',
-              },
-              {
-                src: '/tour/02-projects.png',
-                title: 'Projects',
-                body: 'Long-lived workspaces — search, sort by activity, archive, multi-user share with editor/viewer roles.',
-              },
-              {
-                src: '/tour/03-skills.png',
-                title: 'Skills',
-                body: '14 bundled Claude Agent Skills + R2 + GitHub sources. AI Sparkle rewrite + diff approval flow.',
-              },
-              {
-                src: '/tour/04-connectors.png',
-                title: 'MCP Connectors',
-                body: 'Per-user OAuth to Google Workspace, Microsoft 365, any MCP server. PKCE + DCR, AES-GCM tokens.',
-              },
-              {
-                src: '/tour/05-approvals.png',
-                title: 'Approvals queue',
-                body: 'Human-in-the-loop for autonomous agents — review memory updates, sends, posts before they execute.',
-              },
-              {
-                src: '/tour/06-activity.png',
-                title: 'Activity log',
-                body: 'Audit trail with daily/weekly stats, filters, entity history. Pagination built-in.',
-              },
-              {
-                src: '/tour/03-create-modal.png',
-                title: 'New space — Custom',
-                body: 'Per-agent checkbox + reply-mode picker. Pick exactly the agent set + behaviour you want.',
-              },
-              {
-                src: '/tour/04-templates.png',
-                title: 'New space — Templates',
-                body: "6 starter packs: Solo workshop, Marketing pod, Support war room, Research room, Writer's desk, Blank.",
-              },
-              {
-                src: '/tour/06-mention-autocomplete.png',
-                title: '@-mention autocomplete',
-                body: 'People + Agents sections, keyboard nav (↑/↓/Enter/Escape), inserts a real pill chip.',
-              },
-            ].map((shot) => (
-              <button
-                type="button"
-                key={shot.title}
-                onClick={() => setZoom(shot)}
-                className="group block w-full text-left"
-                aria-label={`Zoom ${shot.title}`}
-              >
-                <Card className="overflow-hidden border-border/50 transition-colors group-hover:border-primary/40">
-                  <div className="overflow-hidden">
-                    <img
-                      src={shot.src}
-                      alt={shot.title}
-                      className="w-full cursor-zoom-in transition-transform duration-300 group-hover:scale-[1.02]"
-                    />
-                  </div>
-                  <CardContent className="p-3">
-                    <h3 className="text-sm font-semibold mb-0.5">{shot.title}</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{shot.body}</p>
+          <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                Il problema
+              </div>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+                Trovare bandi non basta.
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-muted-foreground">
+                Il lavoro vero è capire quali procedure meritano attenzione prima di aprire decine
+                di portali, allegati e disciplinari.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {principles.map((item) => (
+                <Card key={item.title} className="h-full">
+                  <CardContent className="p-5">
+                    <item.icon className="size-6 text-primary" />
+                    <h3 className="mt-4 font-semibold">{item.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.body}</p>
                   </CardContent>
                 </Card>
-              </button>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Wide feature grid */}
-      <section className="py-12">
+      <section className="border-b border-border py-16 md:py-20">
         <div className="container mx-auto max-w-6xl px-4">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Everything else, included.
+          <div className="max-w-2xl">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+              Come funziona
+            </div>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+              Un filtro operativo, non un altro portale da controllare.
             </h2>
-            <p className="mt-3 text-lg text-muted-foreground max-w-2xl mx-auto">
-              30+ modules. Not toy demos — production patterns shaped by real apps.
-            </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((f) => (
-              <Card key={f.title} className="border-border/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      <f.icon className="h-4 w-4" />
-                    </div>
-                    <h3 className="text-sm font-semibold">{f.title}</h3>
+          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {steps.map((step) => (
+              <Card key={step.n}>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <step.icon className="size-6 text-primary" />
+                    <span className="text-xs font-semibold text-muted-foreground">{step.n}</span>
                   </div>
-                  <p className="text-muted-foreground text-xs leading-relaxed">{f.description}</p>
+                  <h3 className="mt-7 text-lg font-semibold">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.body}</p>
                 </CardContent>
               </Card>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Architecture */}
-      <section className="py-12 bg-muted/30 border-y border-border">
-        <div className="container mx-auto max-w-6xl px-4">
-          <div className="grid gap-8 lg:grid-cols-2 items-center">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-3">
-                Built the way you should build on Cloudflare.
-              </h2>
-              <p className="text-muted-foreground mb-4">
-                Workers + Static Assets at the edge. D1 for persistence. R2 for files. Durable
-                Objects for stateful agents. Workers AI free tier + OpenRouter for everything else.
-                Vectorize-ready when you need semantic memory.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Every module is opt-in via feature flags. Don&apos;t delete what you don&apos;t need
-                — keep it as a worked example for the next person (or AI agent) reading your code.
-              </p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-5 font-mono text-xs leading-relaxed">
-              <div className="text-muted-foreground">// wrangler.jsonc — opt-in bindings</div>
-              <div className="mt-2">
-                <span className="text-muted-foreground">d1_databases</span>: [DB]
-              </div>
-              <div>
-                <span className="text-muted-foreground">r2_buckets</span>: [AVATARS, FILES, SKILLS,
-                DATA_LAKE]
-              </div>
-              <div>
-                <span className="text-muted-foreground">ai</span>: AI
-              </div>
-              <div>
-                <span className="text-muted-foreground">images</span>: IMAGES
-              </div>
-              <div>
-                <span className="text-muted-foreground">media</span>: MEDIA
-              </div>
-              <div>
-                <span className="text-muted-foreground">durable_objects</span>:
-              </div>
-              <div className="ml-4">VoiceInputExample · VideoInputExample</div>
-              <div className="ml-4">ReminderAgent · AssistantAgent</div>
-              <div className="ml-4">ResearcherAgent · WriterAgent</div>
-              <div className="ml-4">SweeperAgent · ScratchpadMcpAgent</div>
-              <div className="ml-4 text-emerald-600 dark:text-emerald-400">SpaceAgent ← new</div>
-              <div className="mt-2">
-                <span className="text-muted-foreground">triggers.crons</span>: [&quot;*/15 * * *
-                *&quot;]
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Tech stack */}
-      <section className="py-12">
-        <div className="container mx-auto max-w-6xl px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">Modern stack</h2>
-            <p className="text-muted-foreground">
-              Latest of everything. Updated weekly as the ecosystem ships.
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            {[
-              'React 19',
-              'Vite 7',
-              'Hono 4.12',
-              'AI SDK v6',
-              'Cloudflare Agents SDK',
-              'Workers AI',
-              'D1 + Drizzle',
-              'R2',
-              'Durable Objects',
-              'Vectorize',
-              'better-auth 1.6',
-              'Tailwind v4',
-              'shadcn/ui (59)',
-              'TanStack Query 5',
-              'Milkdown',
-              'Zod',
-              'emoji-mart',
-              'OpenRouter',
-            ].map((tech) => (
-              <Badge key={tech} variant="secondary" className="text-sm py-1.5 px-3">
-                {tech}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20 bg-gradient-to-b from-muted/30 to-background border-t border-border">
-        <div className="container mx-auto max-w-4xl px-4 text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
-            Fork it. Ship something nobody else has.
-          </h2>
-          <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
-            The pattern library that lets you build assistive SaaS at the edge — without rebuilding
-            the platform every time.
-          </p>
-          {appConfig.githubUrl && (
-            <div className="mb-8 max-w-2xl mx-auto">
-              <div className="rounded-lg border bg-background/60 px-4 py-3 text-left font-mono text-sm text-muted-foreground overflow-x-auto">
-                <span className="select-none text-muted-foreground/60">$ </span>
-                <span className="text-foreground">git clone {appConfig.githubUrl}.git</span>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Then read{' '}
-                <a
-                  href={`${appConfig.githubUrl}/blob/main/FORKING.md`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:text-foreground"
-                >
-                  FORKING.md
-                </a>{' '}
-                for the rebrand + customise checklist.
-              </p>
-            </div>
-          )}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" render={<Link to={primaryCtaHref} />}>
-              Try it live
-              <ArrowRight className="ml-2 h-4 w-4" />
+          <div className="mt-8">
+            <Button variant="outline" render={<Link to="/come-funziona" />}>
+              Vedi il processo completo
+              <ArrowRight className="ml-2 size-4" />
             </Button>
-            {appConfig.githubUrl && (
-              <Button
-                size="lg"
-                variant="outline"
-                render={<a href={appConfig.githubUrl} target="_blank" rel="noopener noreferrer" />}
-              >
-                <GithubIcon className="mr-2 h-4 w-4" />
-                Star on GitHub
-              </Button>
-            )}
           </div>
         </div>
       </section>
 
-      {/* Lightbox — opens when any tour screenshot is clicked. Esc /
-          click-outside / X dismiss. Image renders at natural size up
-          to 95vw / 90vh so detail is visible without forcing a
-          full-page navigation. */}
-      <Dialog open={!!zoom} onOpenChange={(o) => !o && setZoom(null)}>
-        <DialogContent
-          className="max-h-[95vh] w-[95vw] max-w-[1600px] overflow-y-auto p-0 sm:!max-w-[1600px]"
-          showCloseButton
-        >
-          {zoom && (
-            <div className="flex flex-col">
-              <img src={zoom.src} alt={zoom.title} className="w-full" />
-              <div className="border-t border-border bg-card px-5 py-3">
-                <DialogTitle className="text-base font-semibold">{zoom.title}</DialogTitle>
-                <DialogDescription className="mt-1 text-xs leading-relaxed">
-                  {zoom.body}
-                </DialogDescription>
-              </div>
+      <section className="border-b border-border bg-foreground py-16 text-background md:py-20">
+        <div className="container mx-auto grid max-w-6xl gap-10 px-4 lg:grid-cols-[1.1fr_.9fr] lg:items-center">
+          <div>
+            <Badge variant="secondary">Partenza controllata</Badge>
+            <h2 className="mt-5 max-w-2xl text-3xl font-semibold tracking-tight md:text-5xl">
+              Prima facciamo bene un segmento. Poi allarghiamo.
+            </h2>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-background/70">
+              La beta parte da impianti e lavori tecnici nel Lazio. Nuovi settori e territori
+              entrano solo quando le fonti e il volume delle opportunità sono abbastanza solidi.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button variant="secondary" render={<Link to="/settori" />}>
+                Vedi i settori
+              </Button>
+              <Button
+                variant="outline"
+                className="border-background/20 bg-transparent text-background hover:bg-background/10 hover:text-background"
+                render={<Link to="/prezzi" />}
+              >
+                Prezzi e beta
+              </Button>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+
+          <div className="grid gap-3">
+            <DarkFeature icon={MapPin} title="Territorio" body="Parti dalle aree in cui lavori davvero." />
+            <DarkFeature icon={Target} title="Profilo" body="Attività, categorie e fascia di opportunità." />
+            <DarkFeature icon={Sparkle} title="Priorità" body="Una spiegazione sintetica del perché vale la pena aprire una gara." />
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 md:py-20">
+        <div className="container mx-auto max-w-4xl px-4 text-center">
+          <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
+            Vuoi vedere solo le opportunità che vale la pena controllare?
+          </h2>
+          <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
+            Entra nella beta, indicaci cosa fai e dove lavori. Nessun addebito durante la fase beta.
+          </p>
+          <div className="mt-8">
+            <Button size="lg" render={<Link to="/beta" />}>
+              Attiva il tuo radar
+              <ArrowRight className="ml-2 size-4" />
+            </Button>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="text-base font-bold text-foreground">{value}</span>
-      <span>{label}</span>
+    <div className="rounded-xl border border-border bg-muted/30 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
+    </div>
+  )
+}
+
+function DarkFeature({
+  icon: Icon,
+  title,
+  body,
+}: {
+  icon: typeof MapPin
+  title: string
+  body: string
+}) {
+  return (
+    <div className="rounded-2xl border border-background/15 bg-background/5 p-5">
+      <Icon className="size-5 text-primary" />
+      <div className="mt-3 font-semibold">{title}</div>
+      <div className="mt-1 text-sm text-background/65">{body}</div>
     </div>
   )
 }

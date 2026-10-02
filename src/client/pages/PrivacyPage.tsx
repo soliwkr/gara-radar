@@ -16,6 +16,7 @@ export function PrivacyPage() {
       <section className="py-16">
         <div className="container mx-auto max-w-4xl space-y-4 px-4">
           {[
+            ['Titolare del trattamento', 'Internet Marketing Secrets di Christian Fioravanti · P.IVA 02996460594 · Formia (LT), Italia · privacy@gararadar.it.'],
             ['Dati raccolti', 'Email, attività dell’impresa, territorio, fascia indicativa dei lavori e dati tecnici essenziali necessari al funzionamento del servizio.'],
             ['Finalità', 'Gestire la richiesta beta, configurare il profilo iniziale, inviare comunicazioni strettamente collegate al servizio e migliorare il radar sulla base di utilizzo aggregato.'],
             ['Pagamenti e profilazione', 'La beta non attiva pagamenti automatici. Non vendiamo i dati personali raccolti tramite il modulo beta.'],
@@ -26,9 +27,7 @@ export function PrivacyPage() {
           <p className="text-sm text-muted-foreground">
             Per richieste relative ai dati personali: <a className="underline" href="mailto:privacy@gararadar.it">privacy@gararadar.it</a>.
           </p>
-          <p className="text-xs text-muted-foreground">
-            I dati identificativi completi del titolare del trattamento devono essere aggiunti prima dell’avvio commerciale.
-          </p>
+
         </div>
       </section>
     </div>

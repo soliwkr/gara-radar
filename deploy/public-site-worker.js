@@ -1,4 +1,5 @@
 const SITE = "https://gara-radar.soliwkr.workers.dev";
+const STRIPE_LINK = "https://buy.stripe.com/3cI7sL9UA1MNcbj50wgjC00";
 
 const opportunities = [
   {
@@ -99,8 +100,18 @@ function settori(){
 }
 
 function prezzi(){
- const body=`<section class="page-hero center"><div class="shell max700"><div class="eyebrow">Prezzi</div><h1>Provalo prima di pagarlo.</h1><p>La beta è gratuita. Prima di attivare qualsiasi piano a pagamento comunicheremo chiaramente prezzo, funzionalità e data di decorrenza.</p></div></section><section class="section"><div class="shell"><div class="pricing" style="margin:auto"><div class="price-card featured"><span class="verified">BETA</span><div class="price" style="margin-top:16px">€0</div><p class="section-intro" style="font-size:15px">Per la fase di validazione.</p><div class="checks"><div class="check">✓ Profilo impresa</div><div class="check">✓ Radar del segmento beta</div><div class="check">✓ Fonti ufficiali in evidenza</div><div class="check">✓ Alert progressivamente attivati</div></div><a class="btn primary" style="width:100%" href="/beta">Entra nella beta →</a></div><div class="price-card"><span class="deadline">DOPO LA BETA</span><div class="price" style="margin-top:16px">da €9,90<small>/mese</small></div><p class="section-intro" style="font-size:15px">Prezzo di lancio previsto per un profilo essenziale. Nessun addebito automatico dalla beta.</p><div class="checks"><div class="check">✓ Categoria / attività</div><div class="check">✓ Territorio</div><div class="check">✓ Preferiti</div><div class="check">✓ Alert ricorrenti</div></div></div></div><p class="center" style="font-size:11px;color:var(--muted);margin-top:20px">I dettagli commerciali possono cambiare durante la beta. Ogni variazione verrà comunicata prima dell’attivazione di un piano.</p></div></section>`;
+ const body=`<section class="page-hero center"><div class="shell max700"><div class="eyebrow">Prezzi</div><h1>Provalo prima di pagarlo.</h1><p>La beta è gratuita. Prima di attivare qualsiasi piano a pagamento comunicheremo chiaramente prezzo, funzionalità e data di decorrenza.</p></div></section><section class="section"><div class="shell"><div class="pricing" style="margin:auto"><div class="price-card featured"><span class="verified">BETA</span><div class="price" style="margin-top:16px">€0</div><p class="section-intro" style="font-size:15px">Per la fase di validazione.</p><div class="checks"><div class="check">✓ Profilo impresa</div><div class="check">✓ Radar del segmento beta</div><div class="check">✓ Fonti ufficiali in evidenza</div><div class="check">✓ Alert progressivamente attivati</div></div><a class="btn primary" style="width:100%" href="/beta">Entra nella beta →</a></div><div class="price-card"><span class="deadline">FOUNDING RADAR</span><div class="price" style="margin-top:16px">€9,90<small>/mese</small></div><p class="section-intro" style="font-size:15px">Per chi ha già visto valore nel radar e vuole continuare a ricevere opportunità filtrate. Cancellabile.</p><div class="checks"><div class="check">✓ Un profilo impresa</div><div class="check">✓ Un territorio principale</div><div class="check">✓ Opportunità filtrate</div><div class="check">✓ Alert ricorrenti</div></div><a class="btn primary" style="width:100%" href="/abbonati">Attiva Founding Radar →</a></div></div><p class="center" style="font-size:11px;color:var(--muted);margin-top:20px">I dettagli commerciali possono cambiare durante la beta. Ogni variazione verrà comunicata prima dell’attivazione di un piano.</p></div></section>`;
  return layout("Prezzi — Gara Radar","Beta gratuita e indicazioni sul prezzo di lancio di Gara Radar.",body,"/prezzi");
+}
+
+function abbonati(){
+ const body=`<section class="page-hero"><div class="shell form-wrap"><div><span class="badge"><span class="dot"></span>Founding Radar</span><h1>Continua a ricevere le opportunità che vale la pena controllare.</h1><p>€9,90 al mese, cancellabile. Un profilo impresa, un territorio principale, opportunità filtrate e fonti ufficiali sempre visibili.</p><div class="notice" style="margin-top:22px">Prima di pagare, assicurati che le gare mostrate nel radar siano del tipo che la tua impresa valuterebbe davvero. Gara Radar non certifica requisiti o ammissibilità.</div></div><div class="price-card featured"><span class="verified">FOUNDING</span><div class="price" style="margin-top:16px">€9,90<small>/mese</small></div><div class="checks"><div class="check">✓ Opportunità filtrate sul profilo</div><div class="check">✓ Fonti ufficiali</div><div class="check">✓ Alert ricorrenti</div><div class="check">✓ Cancellabile</div></div><a class="btn primary" style="width:100%" href="${STRIPE_LINK}" rel="noopener noreferrer">Vai al pagamento sicuro →</a><p style="font-size:11px;color:var(--muted);margin-top:12px">Il pagamento avviene sulla pagina sicura ospitata da Stripe.</p></div></div></section>`;
+ return layout("Founding Radar — Gara Radar","Attiva Founding Radar a €9,90/mese dopo aver verificato che le opportunità siano utili alla tua impresa.",body,"/abbonati");
+}
+
+function grazie(){
+ const body=`<section class="page-hero center"><div class="shell max700"><span class="badge"><span class="dot"></span>Abbonamento ricevuto</span><h1>Founding Radar è attivo.</h1><p>Grazie. Stripe ci ha notificato il pagamento; useremo il profilo collegato per continuare a consegnare opportunità pertinenti. Se hai appena pagato, l’attivazione può richiedere qualche secondo.</p><div class="hero-cta" style="justify-content:center"><a class="btn primary" href="/gare">Torna al radar</a><a class="btn secondary" href="mailto:privacy@gararadar.it">Contatto</a></div></div></section>`;
+ return layout("Grazie — Gara Radar","Conferma dell’attivazione di Founding Radar.",body,"/grazie");
 }
 
 function faq(){
@@ -151,10 +162,58 @@ function dati(){
 async function hash(text){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function track(env,p){try{const day=new Date().toISOString().slice(0,10),key="metric:"+day+":"+String(p.type||"UNKNOWN");const n=Number(await env.GR_CONTROL.get(key)||0)+1;await env.GR_CONTROL.put(key,String(n));}catch{}}
 
+function timingSafeEqualHex(a,b){
+ if(a.length!==b.length)return false;
+ let diff=0;
+ for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);
+ return diff===0;
+}
+async function hmacHex(secret,message){
+ const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+ const sig=await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(message));
+ return Array.from(new Uint8Array(sig)).map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+async function verifyStripeSignature(raw,header,secret){
+ if(!header||!secret)return false;
+ const parts=header.split(",").map(x=>x.trim());
+ const t=parts.find(x=>x.startsWith("t="))?.slice(2);
+ const sigs=parts.filter(x=>x.startsWith("v1=")).map(x=>x.slice(3));
+ if(!t||!sigs.length)return false;
+ const age=Math.abs(Date.now()/1000-Number(t));
+ if(!Number.isFinite(age)||age>300)return false;
+ const expected=await hmacHex(secret,t+"."+raw);
+ return sigs.some(sig=>timingSafeEqualHex(expected,sig));
+}
+async function handleStripeEvent(env,event){
+ const obj=event?.data?.object||{};
+ const type=event?.type||"";
+ await env.GR_CONTROL.put("stripe:event:"+event.id,JSON.stringify({id:event.id,type,at:new Date().toISOString()}),{expirationTtl:60*60*24*30});
+ if(type==="checkout.session.completed"&&obj.mode==="subscription"){
+   const email=String(obj.customer_details?.email||obj.customer_email||"").toLowerCase();
+   const rec={status:obj.payment_status==="paid"?"active":"pending",customerId:obj.customer||null,subscriptionId:obj.subscription||null,email,updatedAt:new Date().toISOString(),source:"stripe"};
+   if(email){const id=await hash(email);await env.GR_CONTROL.put("paid:"+id,JSON.stringify(rec));}
+   if(obj.customer)await env.GR_CONTROL.put("subscription:"+obj.customer,JSON.stringify(rec));
+   if(obj.payment_status==="paid")await track(env,{type:"PAID"});
+ }
+ if(type==="invoice.paid"){
+   const customer=String(obj.customer||"");
+   if(customer){const rec=await env.GR_CONTROL.get("subscription:"+customer,"json")||{};rec.status="active";rec.subscriptionId=rec.subscriptionId||obj.subscription||null;rec.updatedAt=new Date().toISOString();await env.GR_CONTROL.put("subscription:"+customer,JSON.stringify(rec));}
+ }
+ if(type==="invoice.payment_failed"){
+   const customer=String(obj.customer||"");
+   if(customer){const rec=await env.GR_CONTROL.get("subscription:"+customer,"json")||{};rec.status="past_due";rec.updatedAt=new Date().toISOString();await env.GR_CONTROL.put("subscription:"+customer,JSON.stringify(rec));}
+ }
+ if(type==="customer.subscription.updated"||type==="customer.subscription.deleted"){
+   const customer=String(obj.customer||"");
+   if(customer){const rec=await env.GR_CONTROL.get("subscription:"+customer,"json")||{};rec.status=type==="customer.subscription.deleted"?"canceled":String(obj.status||rec.status||"unknown");rec.subscriptionId=obj.id||rec.subscriptionId||null;rec.updatedAt=new Date().toISOString();await env.GR_CONTROL.put("subscription:"+customer,JSON.stringify(rec));}
+ }
+}
+
 export default {
  async fetch(request,env){
   const url=new URL(request.url),path=url.pathname.replace(/\/+$/,"")||"/";
   if(path==="/api/health")return Response.json({ok:true,service:"gara-radar",version:"public-site-2026-10-02"});
+  if(path==="/api/stripe/webhook"&&request.method==="POST"){const raw=await request.text();const ok=await verifyStripeSignature(raw,request.headers.get("Stripe-Signature"),env.STRIPE_WEBHOOK_SECRET);if(!ok)return new Response("invalid signature",{status:400});let event;try{event=JSON.parse(raw)}catch{return new Response("bad json",{status:400})}await handleStripeEvent(env,event);return new Response("ok",{status:200});}
   if(path==="/api/event"&&request.method==="POST"){let p={};try{p=await request.json()}catch{};await track(env,p);return new Response(null,{status:204});}
   if(path==="/api/signup"&&request.method==="POST"){
     let p;try{p=await request.json()}catch{return Response.json({error:"bad_json"},{status:400})}
@@ -166,7 +225,7 @@ export default {
     return Response.json({ok:true,id},{status:201});
   }
   if(path==="/robots.txt")return new Response("User-agent: *\nAllow: /\nSitemap: "+SITE+"/sitemap.xml\n",{headers:{"content-type":"text/plain; charset=utf-8"}});
-  if(path==="/sitemap.xml"){const paths=["/","/gare","/come-funziona","/settori","/prezzi","/faq","/beta","/dati","/privacy","/termini","/cookie","/disclaimer"];return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+paths.map(p=>"<url><loc>"+SITE+p+"</loc></url>").join("")+"</urlset>",{headers:{"content-type":"application/xml; charset=utf-8"}});}
+  if(path==="/sitemap.xml"){const paths=["/","/gare","/come-funziona","/settori","/prezzi","/faq","/beta","/abbonati","/grazie","/dati","/privacy","/termini","/cookie","/disclaimer"];return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+paths.map(p=>"<url><loc>"+SITE+p+"</loc></url>").join("")+"</urlset>",{headers:{"content-type":"application/xml; charset=utf-8"}});}
   let html;
   if(path==="/")html=home();
   else if(path==="/gare")html=gare();
@@ -174,6 +233,8 @@ export default {
   else if(path==="/settori")html=settori();
   else if(path==="/prezzi")html=prezzi();
   else if(path==="/faq")html=faq();
+  else if(path==="/abbonati")html=abbonati();
+  else if(path==="/grazie")html=grazie();
   else if(path==="/beta")html=beta();
   else if(path==="/dati")html=dati();
   else html=layout("Pagina non trovata — Gara Radar","Pagina non trovata.",'<section class="page-hero center"><div class="shell"><h1>Pagina non trovata.</h1><p><a class="btn primary" href="/">Torna a Gara Radar</a></p></div></section>',path);
